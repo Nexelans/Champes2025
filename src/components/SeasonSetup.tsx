@@ -23,6 +23,14 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
     5: '',
     6: '',
   });
+  const [hostClubs, setHostClubs] = useState<{ [key: number]: string }>({
+    1: '',
+    2: '',
+    3: '',
+    4: '',
+    5: '',
+    6: '',
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -80,10 +88,13 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
 
       if (datesData) {
         const datesMap: { [key: number]: string } = {};
+        const hostClubsMap: { [key: number]: string } = {};
         datesData.forEach((date) => {
           datesMap[date.round_number] = date.planned_date;
+          hostClubsMap[date.round_number] = date.host_club_id || '';
         });
         setDates(datesMap);
+        setHostClubs(hostClubsMap);
       }
     } catch (error) {
       console.error('Error loading configuration:', error);
@@ -105,6 +116,10 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
 
   const updateDate = (roundNumber: number, date: string) => {
     setDates((prev) => ({ ...prev, [roundNumber]: date }));
+  };
+
+  const updateHostClub = (roundNumber: number, clubId: string) => {
+    setHostClubs((prev) => ({ ...prev, [roundNumber]: clubId }));
   };
 
   const saveConfiguration = async () => {
@@ -159,7 +174,7 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
           division: division,
           round_number: parseInt(roundNumber),
           planned_date: date,
-          host_club_id: null,
+          host_club_id: hostClubs[parseInt(roundNumber)] || null,
         });
       }
 
@@ -273,30 +288,82 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
                 Dates des rencontres
               </h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {[1, 2, 3, 4, 5].map((round) => (
-                <div key={round}>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                <div key={round} className="bg-slate-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-semibold text-slate-900 mb-3">
                     Journée {round}
-                  </label>
-                  <input
-                    type="date"
-                    value={dates[round] || ''}
-                    onChange={(e) => updateDate(round, e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  />
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Date
+                      </label>
+                      <input
+                        type="date"
+                        value={dates[round] || ''}
+                        onChange={(e) => updateDate(round, e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Club hôte (optionnel)
+                      </label>
+                      <select
+                        value={hostClubs[round] || ''}
+                        onChange={(e) => updateHostClub(round, e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      >
+                        <option value="">Automatique (club de l'équipe 1)</option>
+                        {clubs
+                          .filter((c) => c.is_participating)
+                          .map((club) => (
+                            <option key={club.club_id} value={club.club_id}>
+                              {club.club_name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               ))}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+              <div className="bg-slate-50 p-4 rounded-lg">
+                <h4 className="text-sm font-semibold text-slate-900 mb-3">
                   Finale
-                </label>
-                <input
-                  type="date"
-                  value={dates[6] || ''}
-                  onChange={(e) => updateDate(6, e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dates[6] || ''}
+                      onChange={(e) => updateDate(6, e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Club hôte (optionnel)
+                    </label>
+                    <select
+                      value={hostClubs[6] || ''}
+                      onChange={(e) => updateHostClub(6, e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    >
+                      <option value="">Automatique (club de l'équipe 1)</option>
+                      {clubs
+                        .filter((c) => c.is_participating)
+                        .map((club) => (
+                          <option key={club.club_id} value={club.club_id}>
+                            {club.club_name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -342,6 +409,10 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
           <li className="flex items-start gap-2">
             <span className="text-emerald-600 mt-0.5">•</span>
             <span>Définissez les dates des 5 journées régulières et de la finale</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-emerald-600 mt-0.5">•</span>
+            <span>Vous pouvez choisir un club hôte pour chaque journée (optionnel)</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-emerald-600 mt-0.5">•</span>
