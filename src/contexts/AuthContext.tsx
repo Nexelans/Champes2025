@@ -14,10 +14,19 @@ type CaptainInfo = {
   division: 'champe1' | 'champe2';
 };
 
+type AdminInfo = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+};
+
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   captain: CaptainInfo | null;
+  admin: AdminInfo | null;
+  isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
@@ -30,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [captain, setCaptain] = useState<CaptainInfo | null>(null);
+  const [admin, setAdmin] = useState<AdminInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        loadCaptainInfo(session.user.id);
+        loadUserInfo(session.user.id);
       } else {
         setLoading(false);
       }
@@ -49,9 +59,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        loadCaptainInfo(session.user.id);
+        loadUserInfo(session.user.id);
       } else {
         setCaptain(null);
+        setAdmin(null);
         setLoading(false);
       }
     });
@@ -59,9 +70,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadCaptainInfo = async (userId: string) => {
+  const loadUserInfo = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: adminData } = await supabase
+        .from('admin_users')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (adminData) {
+        setAdmin({
+          id: adminData.id,
+          first_name: adminData.first_name,
+          last_name: adminData.last_name,
+          email: adminData.email,
+        });
+        setLoading(false);
+        return;
+      }
+
+      const { data: captainData, error } = await supabase
         .from('captains')
         .select(`
           id,
@@ -81,22 +109,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
 
-      if (data) {
-        const team = (data as any).teams;
+      if (captainData) {
+        const team = (captainData as any).teams;
         setCaptain({
-          id: data.id,
-          team_id: data.team_id,
-          first_name: data.first_name,
-          last_name: data.last_name,
-          phone: data.phone,
-          email: data.email,
+          id: captainData.id,
+          team_id: captainData.team_id,
+          first_name: captainData.first_name,
+          last_name: captainData.last_name,
+          phone: captainData.phone,
+          email: captainData.email,
           club_id: team.club_id,
           club_name: team.clubs.name,
           division: team.division,
         });
       }
     } catch (error) {
-      console.error('Error loading captain info:', error);
+      console.error('Error loading user info:', error);
     } finally {
       setLoading(false);
     }
@@ -121,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setCaptain(null);
+    setAdmin(null);
   };
 
   return (
@@ -129,6 +158,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         session,
         captain,
+        admin,
+        isAdmin: !!admin,
         loading,
         signIn,
         signUp,

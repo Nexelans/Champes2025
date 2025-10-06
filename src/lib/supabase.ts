@@ -120,3 +120,12 @@ export type MatchLineup = {
   created_at: string;
   updated_at: string;
 };
+
+export type AdminUser = {
+  id: string;
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  created_at: string;
+};
