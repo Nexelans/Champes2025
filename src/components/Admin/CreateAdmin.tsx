@@ -20,6 +20,7 @@ export default function CreateAdmin() {
         email,
         password,
         options: {
+          emailRedirectTo: window.location.origin,
           data: {
             first_name: firstName,
             last_name: lastName,
@@ -39,10 +40,16 @@ export default function CreateAdmin() {
 
         if (adminError) throw adminError;
 
+        await supabase.auth.signOut();
+
         setMessage({
           type: 'success',
-          text: 'Compte administrateur créé avec succès ! Vous pouvez maintenant vous connecter.',
+          text: 'Compte administrateur créé avec succès ! Connectez-vous maintenant.',
         });
+
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
       }
     } catch (error: any) {
       console.error('Error creating admin:', error);
