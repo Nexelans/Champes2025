@@ -92,7 +92,7 @@ function App() {
             </div>
 
             <div className="flex items-center gap-4">
-              {['calendar', 'standings', 'teams'].includes(activeTab) && (
+              {['calendar', 'standings', 'teams', 'setup'].includes(activeTab) && (
                 <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
                   <button
                     onClick={() => setDivision('champe1')}

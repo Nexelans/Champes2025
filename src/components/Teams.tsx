@@ -37,15 +37,30 @@ export default function Teams({ division }: TeamsProps) {
         return;
       }
 
+      const { data: seasonClubsData } = await supabase
+        .from('season_clubs')
+        .select('club_id')
+        .eq('season_id', season.id)
+        .eq('division', division)
+        .eq('is_participating', true);
+
+      if (!seasonClubsData || seasonClubsData.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const participatingClubIds = seasonClubsData.map((sc) => sc.club_id);
+
       const { data: teamsData } = await supabase
         .from('teams')
         .select(`
           id,
-          club:clubs(name),
-          captains(first_name, last_name, phone, email)
+          club_id,
+          clubs!inner(name)
         `)
         .eq('season_id', season.id)
-        .eq('division', division);
+        .eq('division', division)
+        .in('club_id', participatingClubIds);
 
       if (teamsData) {
         const teamsInfo: TeamInfo[] = await Promise.all(
@@ -56,16 +71,20 @@ export default function Teams({ division }: TeamsProps) {
               .eq('team_id', team.id)
               .eq('is_active', true);
 
-            const captain = team.captains?.[0];
+            const { data: captainData } = await supabase
+              .from('captains')
+              .select('first_name, last_name, phone, email')
+              .eq('team_id', team.id)
+              .maybeSingle();
 
             return {
               team_id: team.id,
-              club_name: team.club?.name || '',
-              captain_name: captain
-                ? `${captain.first_name} ${captain.last_name}`
+              club_name: team.clubs?.name || '',
+              captain_name: captainData
+                ? `${captainData.first_name} ${captainData.last_name}`
                 : 'Non défini',
-              captain_phone: captain?.phone || '',
-              captain_email: captain?.email || '',
+              captain_phone: captainData?.phone || '',
+              captain_email: captainData?.email || '',
               players_count: count || 0,
             };
           })

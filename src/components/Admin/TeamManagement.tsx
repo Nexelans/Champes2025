@@ -44,6 +44,25 @@ export default function TeamManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
+      const { data: seasonData } = await supabase
+        .from('seasons')
+        .select('id')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!seasonData) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: seasonClubsData } = await supabase
+        .from('season_clubs')
+        .select('club_id, division')
+        .eq('season_id', seasonData.id)
+        .eq('is_participating', true);
+
+      const participatingTeams = seasonClubsData || [];
+
       const { data: clubsData } = await supabase
         .from('clubs')
         .select('id, name')
@@ -55,8 +74,10 @@ export default function TeamManagement() {
           id,
           division,
           club_id,
+          season_id,
           clubs!inner(name)
         `)
+        .eq('season_id', seasonData.id)
         .order('division');
 
       const { data: captainsData } = await supabase
@@ -65,7 +86,13 @@ export default function TeamManagement() {
 
       setClubs(clubsData || []);
 
-      const teamsWithCaptains = (teamsData || []).map((team: any) => ({
+      const filteredTeams = (teamsData || []).filter((team: any) =>
+        participatingTeams.some(
+          (pt) => pt.club_id === team.club_id && pt.division === team.division
+        )
+      );
+
+      const teamsWithCaptains = filteredTeams.map((team: any) => ({
         id: team.id,
         division: team.division,
         club_id: team.club_id,
