@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginForm from './components/Auth/LoginForm';
+import CreateAdmin from './components/Admin/CreateAdmin';
 import Dashboard from './components/Dashboard';
 import CalendarView from './components/CalendarView';
 import Teams from './components/Teams';
@@ -58,6 +59,10 @@ function App() {
   }
 
   if (!user) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('setup') === 'admin') {
+      return <CreateAdmin />;
+    }
     return <LoginForm />;
   }
 

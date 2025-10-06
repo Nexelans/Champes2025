@@ -98,6 +98,14 @@ export default function LoginForm() {
             <p className="text-sm text-slate-600 text-center">
               Première connexion ? Contactez l'administrateur pour créer votre compte.
             </p>
+            <div className="mt-4 text-center">
+              <a
+                href="?setup=admin"
+                className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Configuration initiale
+              </a>
+            </div>
           </div>
         </div>
       </div>
