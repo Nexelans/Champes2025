@@ -35,11 +35,18 @@ export default function PlayersManagement() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('players')
         .select('*')
-        .eq('club_id', captain.club_id)
-        .order('last_name');
+        .eq('club_id', captain.club_id);
+
+      if (captain.division === 'champe1') {
+        query = query.lte('handicap_index', 18);
+      } else if (captain.division === 'champe2') {
+        query = query.gte('handicap_index', 17);
+      }
+
+      const { data, error } = await query.order('last_name');
 
       if (error) throw error;
 
