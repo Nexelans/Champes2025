@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList } from 'lucide-react';
+import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList, Swords } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginForm from './components/Auth/LoginForm';
 import CreateAdmin from './components/Admin/CreateAdmin';
@@ -13,8 +13,9 @@ import SeasonSetup from './components/SeasonSetup';
 import ProfileManagement from './components/Captain/ProfileManagement';
 import PlayersManagement from './components/Captain/PlayersManagement';
 import TeamSelection from './components/Captain/TeamSelection';
+import MatchesView from './components/MatchesView';
 
-type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'setup' | 'profile' | 'players' | 'team-management' | 'validation' | 'selection';
+type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'matches' | 'setup' | 'profile' | 'players' | 'team-management' | 'validation' | 'selection';
 
 function App() {
   const { user, captain, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -37,6 +38,7 @@ function App() {
   const publicTabs = [
     { id: 'dashboard' as Tab, label: 'Tableau de Bord', icon: Trophy },
     { id: 'calendar' as Tab, label: 'Calendrier', icon: Calendar },
+    { id: 'matches' as Tab, label: 'Rencontres', icon: Swords },
     { id: 'standings' as Tab, label: 'Classement', icon: Award },
     { id: 'teams' as Tab, label: 'Équipes', icon: Users },
   ];
@@ -95,7 +97,7 @@ function App() {
             </div>
 
             <div className="flex items-center gap-4">
-              {['calendar', 'standings', 'teams', 'setup'].includes(activeTab) && (
+              {['calendar', 'matches', 'standings', 'teams', 'setup'].includes(activeTab) && (
                 <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
                   <button
                     onClick={() => setDivision('champe1')}
@@ -159,6 +161,7 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'calendar' && <CalendarView division={division} />}
+        {activeTab === 'matches' && <MatchesView division={division} />}
         {activeTab === 'standings' && <Standings division={division} />}
         {activeTab === 'teams' && <Teams division={division} />}
         {activeTab === 'profile' && <ProfileManagement />}
