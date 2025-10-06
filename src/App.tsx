@@ -1,67 +1,110 @@
-import { useState } from 'react';
-import { Calendar, Trophy, Users, BarChart3, PlusCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Trophy, Calendar, Users, Award, Settings } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import CalendarView from './components/CalendarView';
-import StandingsView from './components/StandingsView';
-import ResultsEntry from './components/ResultsEntry';
-import PlayersManagement from './components/PlayersManagement';
+import Teams from './components/Teams';
+import Standings from './components/Standings';
+import SeasonSetup from './components/SeasonSetup';
 
-type View = 'dashboard' | 'calendar' | 'standings' | 'results' | 'players';
+type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'setup';
 
 function App() {
-  const [currentView, setCurrentView] = useState<View>('dashboard');
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [division, setDivision] = useState<'champe1' | 'champe2'>('champe1');
+  const [loading, setLoading] = useState(true);
 
-  const navigation = [
-    { id: 'dashboard' as View, name: 'Tableau de bord', icon: BarChart3 },
-    { id: 'calendar' as View, name: 'Calendrier', icon: Calendar },
-    { id: 'standings' as View, name: 'Classements', icon: Trophy },
-    { id: 'results' as View, name: 'Saisir résultats', icon: PlusCircle },
-    { id: 'players' as View, name: 'Joueurs', icon: Users },
+  useEffect(() => {
+    setTimeout(() => setLoading(false), 500);
+  }, []);
+
+  const tabs = [
+    { id: 'dashboard' as Tab, label: 'Tableau de Bord', icon: Trophy },
+    { id: 'calendar' as Tab, label: 'Calendrier', icon: Calendar },
+    { id: 'standings' as Tab, label: 'Classement', icon: Award },
+    { id: 'teams' as Tab, label: 'Équipes', icon: Users },
+    { id: 'setup' as Tab, label: 'Configuration', icon: Settings },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white shadow-sm border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Champe 2024-2025</h1>
-              <p className="text-sm text-slate-600 mt-1">Championnat Hivernal Amical Match Play par Équipe</p>
+            <div className="flex items-center gap-3">
+              <Trophy className="h-8 w-8 text-emerald-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  Championnat Champe
+                </h1>
+                <p className="text-sm text-slate-600">Saison 2024-2025</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
+              <button
+                onClick={() => setDivision('champe1')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  division === 'champe1'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Champe 1
+              </button>
+              <button
+                onClick={() => setDivision('champe2')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  division === 'champe2'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Champe 2
+              </button>
             </div>
           </div>
-        </div>
-      </header>
 
-      <nav className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            {navigation.map((item) => {
-              const Icon = item.icon;
+          <nav className="mt-6 flex gap-1" role="tablist">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
               return (
                 <button
-                  key={item.id}
-                  onClick={() => setCurrentView(item.id)}
-                  className={`flex items-center space-x-2 px-3 py-4 border-b-2 transition-colors ${
-                    currentView === item.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-emerald-50 text-emerald-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
                 </button>
               );
             })}
-          </div>
+          </nav>
         </div>
-      </nav>
+      </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentView === 'dashboard' && <Dashboard />}
-        {currentView === 'calendar' && <CalendarView />}
-        {currentView === 'standings' && <StandingsView />}
-        {currentView === 'results' && <ResultsEntry />}
-        {currentView === 'players' && <PlayersManagement />}
+        {activeTab === 'dashboard' && <Dashboard division={division} />}
+        {activeTab === 'calendar' && <CalendarView division={division} />}
+        {activeTab === 'standings' && <Standings division={division} />}
+        {activeTab === 'teams' && <Teams division={division} />}
+        {activeTab === 'setup' && <SeasonSetup division={division} />}
       </main>
     </div>
   );
