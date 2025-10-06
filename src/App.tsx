@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield } from 'lucide-react';
+import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginForm from './components/Auth/LoginForm';
 import CreateAdmin from './components/Admin/CreateAdmin';
@@ -12,8 +12,9 @@ import Standings from './components/Standings';
 import SeasonSetup from './components/SeasonSetup';
 import ProfileManagement from './components/Captain/ProfileManagement';
 import PlayersManagement from './components/Captain/PlayersManagement';
+import TeamSelection from './components/Captain/TeamSelection';
 
-type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'setup' | 'profile' | 'players' | 'team-management' | 'validation';
+type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'setup' | 'profile' | 'players' | 'team-management' | 'validation' | 'selection';
 
 function App() {
   const { user, captain, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -44,6 +45,7 @@ function App() {
     ...publicTabs,
     { id: 'profile' as Tab, label: 'Mon Profil', icon: UserCircle },
     { id: 'players' as Tab, label: 'Mes Joueurs', icon: Users },
+    { id: 'selection' as Tab, label: 'Sélection', icon: ClipboardList },
   ];
 
   const adminTabs = [
@@ -161,6 +163,7 @@ function App() {
         {activeTab === 'teams' && <Teams division={division} />}
         {activeTab === 'profile' && <ProfileManagement />}
         {activeTab === 'players' && <PlayersManagement />}
+        {activeTab === 'selection' && captain && <TeamSelection captain={captain} />}
         {activeTab === 'team-management' && <TeamManagement />}
         {activeTab === 'validation' && <ConfigurationValidation />}
         {activeTab === 'setup' && <SeasonSetup division={division} />}
