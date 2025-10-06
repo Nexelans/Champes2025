@@ -14,6 +14,7 @@ type SeasonDate = {
   round_number: number;
   planned_date: string;
   host_club_id: string | null;
+  host_club_name?: string | null;
   matchups?: Array<{ team1: string; team2: string }>;
 };
 
@@ -54,7 +55,8 @@ export default function CalendarView({ division }: CalendarViewProps) {
           match_date,
           host_club_id,
           team1:teams!matches_team1_id_fkey(id, club:clubs(name)),
-          team2:teams!matches_team2_id_fkey(id, club:clubs(name))
+          team2:teams!matches_team2_id_fkey(id, club:clubs(name)),
+          host_club:clubs(name)
         `)
         .eq('season_id', seasonData.id)
         .order('round_number');
@@ -71,6 +73,8 @@ export default function CalendarView({ division }: CalendarViewProps) {
             team1: match.team1?.club?.name || 'Inconnu',
             team2: match.team2?.club?.name || 'Inconnu',
             date: match.match_date,
+            host_club_id: match.host_club_id,
+            host_club_name: match.host_club?.name || null,
           });
         });
 
@@ -82,7 +86,8 @@ export default function CalendarView({ division }: CalendarViewProps) {
             return {
               round_number: roundNumber,
               planned_date: matches[0].date,
-              host_club_id: null,
+              host_club_id: matches[0].host_club_id,
+              host_club_name: matches[0].host_club_name,
               matchups: matches.map(m => ({ team1: m.team1, team2: m.team2 })),
             };
           })
@@ -96,7 +101,8 @@ export default function CalendarView({ division }: CalendarViewProps) {
             return {
               round_number: roundNumber,
               planned_date: matches[0].date,
-              host_club_id: null,
+              host_club_id: matches[0].host_club_id,
+              host_club_name: matches[0].host_club_name,
               matchups: matches.map(m => ({ team1: m.team1, team2: m.team2 })),
             };
           })
@@ -128,7 +134,7 @@ export default function CalendarView({ division }: CalendarViewProps) {
       date: formatDate(d.planned_date),
       round: d.round_number,
       division: 'Champe 1' as const,
-      host: 'À définir',
+      host: d.host_club_name || 'À définir',
       matchups: d.matchups || []
     }));
 
@@ -138,7 +144,7 @@ export default function CalendarView({ division }: CalendarViewProps) {
       date: formatDate(d.planned_date),
       round: d.round_number,
       division: 'Champe 2' as const,
-      host: 'À définir',
+      host: d.host_club_name || 'À définir',
       matchups: d.matchups || []
     }));
 
@@ -220,7 +226,7 @@ export default function CalendarView({ division }: CalendarViewProps) {
                 </div>
                 <div className="flex items-center space-x-2 bg-white/20 px-3 py-1 rounded-full">
                   <MapPin className="w-4 h-4" />
-                  <span className="text-sm font-medium">À définir</span>
+                  <span className="text-sm font-medium">{finalDate.host_club_name || 'À définir'}</span>
                 </div>
               </div>
               <p className={`mt-4 text-sm ${colorClasses.text}`}>
