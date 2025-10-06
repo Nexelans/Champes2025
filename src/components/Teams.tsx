@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, Phone, Mail, Globe } from 'lucide-react';
+import { Users, Phone, Mail } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type TeamsProps = {
@@ -9,9 +9,6 @@ type TeamsProps = {
 type TeamInfo = {
   team_id: string;
   club_name: string;
-  club_website: string | null;
-  club_phone: string | null;
-  club_email: string | null;
   captain_name: string;
   captain_phone: string;
   captain_email: string;
@@ -44,7 +41,7 @@ export default function Teams({ division }: TeamsProps) {
         .from('teams')
         .select(`
           id,
-          club:clubs(name, website, phone, email),
+          club:clubs(name),
           captains(first_name, last_name, phone, email)
         `)
         .eq('season_id', season.id)
@@ -64,9 +61,6 @@ export default function Teams({ division }: TeamsProps) {
             return {
               team_id: team.id,
               club_name: team.club?.name || '',
-              club_website: team.club?.website || null,
-              club_phone: team.club?.phone || null,
-              club_email: team.club?.email || null,
               captain_name: captain
                 ? `${captain.first_name} ${captain.last_name}`
                 : 'Non défini',
@@ -152,50 +146,6 @@ export default function Teams({ division }: TeamsProps) {
                           className="hover:text-emerald-600 transition-colors truncate"
                         >
                           {team.captain_email}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-200 space-y-2">
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                      Club
-                    </h4>
-
-                    {team.club_website && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Globe className="h-4 w-4 text-slate-400" />
-                        <a
-                          href={team.club_website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-emerald-600 transition-colors truncate"
-                        >
-                          Site web
-                        </a>
-                      </div>
-                    )}
-
-                    {team.club_phone && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Phone className="h-4 w-4 text-slate-400" />
-                        <a
-                          href={`tel:${team.club_phone}`}
-                          className="hover:text-emerald-600 transition-colors"
-                        >
-                          {team.club_phone}
-                        </a>
-                      </div>
-                    )}
-
-                    {team.club_email && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Mail className="h-4 w-4 text-slate-400" />
-                        <a
-                          href={`mailto:${team.club_email}`}
-                          className="hover:text-emerald-600 transition-colors truncate"
-                        >
-                          {team.club_email}
                         </a>
                       </div>
                     )}

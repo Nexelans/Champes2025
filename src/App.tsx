@@ -3,6 +3,7 @@ import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, Log
 import { useAuth } from './contexts/AuthContext';
 import LoginForm from './components/Auth/LoginForm';
 import CreateAdmin from './components/Admin/CreateAdmin';
+import TeamManagement from './components/Admin/TeamManagement';
 import Dashboard from './components/Dashboard';
 import CalendarView from './components/CalendarView';
 import Teams from './components/Teams';
@@ -11,10 +12,10 @@ import SeasonSetup from './components/SeasonSetup';
 import ProfileManagement from './components/Captain/ProfileManagement';
 import PlayersManagement from './components/Captain/PlayersManagement';
 
-type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'setup' | 'profile' | 'players';
+type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'setup' | 'profile' | 'players' | 'team-management';
 
 function App() {
-  const { user, captain, loading: authLoading, signOut } = useAuth();
+  const { user, captain, isAdmin, loading: authLoading, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [division, setDivision] = useState<'champe1' | 'champe2'>('champe1');
   const [loading, setLoading] = useState(true);
@@ -45,7 +46,13 @@ function App() {
     { id: 'setup' as Tab, label: 'Configuration', icon: Settings },
   ];
 
-  const tabs = user ? captainTabs : publicTabs;
+  const adminTabs = [
+    ...publicTabs,
+    { id: 'team-management' as Tab, label: 'Capitaines', icon: Users },
+    { id: 'setup' as Tab, label: 'Configuration', icon: Settings },
+  ];
+
+  const tabs = isAdmin ? adminTabs : (user ? captainTabs : publicTabs);
 
   if (loading || authLoading) {
     return (
@@ -153,6 +160,7 @@ function App() {
         {activeTab === 'teams' && <Teams division={division} />}
         {activeTab === 'profile' && <ProfileManagement />}
         {activeTab === 'players' && <PlayersManagement />}
+        {activeTab === 'team-management' && <TeamManagement />}
         {activeTab === 'setup' && <SeasonSetup division={division} />}
       </main>
     </div>
