@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: adminData } = await supabase
-      .from('admins')
+      .from('admin_users')
       .select('id')
       .eq('user_id', user.id)
       .maybeSingle();
