@@ -44,7 +44,6 @@ function App() {
     ...publicTabs,
     { id: 'profile' as Tab, label: 'Mon Profil', icon: UserCircle },
     { id: 'players' as Tab, label: 'Mes Joueurs', icon: Users },
-    { id: 'setup' as Tab, label: 'Configuration', icon: Settings },
   ];
 
   const adminTabs = [

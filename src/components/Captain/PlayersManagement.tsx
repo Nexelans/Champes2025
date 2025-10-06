@@ -101,6 +101,16 @@ export default function PlayersManagement() {
       return;
     }
 
+    if (captain.division === 'champe1' && index > 18) {
+      setMessage({ type: 'error', text: 'Index invalide pour Champe 1 (maximum 18)' });
+      return;
+    }
+
+    if (captain.division === 'champe2' && index < 17) {
+      setMessage({ type: 'error', text: 'Index invalide pour Champe 2 (minimum 17)' });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
