@@ -47,10 +47,12 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [daysBeforeLock, setDaysBeforeLock] = useState(3);
 
   useEffect(() => {
     loadMatches();
     loadPlayers();
+    loadSeasonConfig();
   }, [captain]);
 
   useEffect(() => {
@@ -58,6 +60,22 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
       loadSelections();
     }
   }, [selectedMatch]);
+
+  const loadSeasonConfig = async () => {
+    try {
+      const { data: seasonData } = await supabase
+        .from('seasons')
+        .select('days_before_match_lock')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (seasonData) {
+        setDaysBeforeLock(seasonData.days_before_match_lock || 3);
+      }
+    } catch (err) {
+      console.error('Error loading season config:', err);
+    }
+  };
 
   const loadMatches = async () => {
     try {
@@ -162,12 +180,14 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
     }
   };
 
-  const isMatchPassed = (matchDate: string) => {
+  const isMatchLocked = (matchDate: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const match = new Date(matchDate);
     match.setHours(0, 0, 0, 0);
-    return match < today;
+    const lockDate = new Date(match);
+    lockDate.setDate(lockDate.getDate() - daysBeforeLock);
+    return today >= lockDate;
   };
 
   const getMaxPlayers = (match: Match) => {
@@ -176,7 +196,19 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
 
   const canModifySelection = () => {
     if (!selectedMatch) return false;
-    return !isMatchPassed(selectedMatch.match_date);
+    return !isMatchLocked(selectedMatch.match_date);
+  };
+
+  const getDaysUntilLock = (matchDate: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const match = new Date(matchDate);
+    match.setHours(0, 0, 0, 0);
+    const lockDate = new Date(match);
+    lockDate.setDate(lockDate.getDate() - daysBeforeLock);
+    const diffTime = lockDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   const togglePlayerSelection = (playerId: string) => {
@@ -206,25 +238,48 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
     setError(null);
 
     try {
+      const maxPlayers = getMaxPlayers(selectedMatch);
+      if (selectedPlayers.length !== maxPlayers) {
+        setError(`Vous devez sélectionner exactement ${maxPlayers} joueurs`);
+        setSaving(false);
+        return;
+      }
+
       await supabase
         .from('match_player_selections')
         .delete()
         .eq('match_id', selectedMatch.id)
         .eq('team_id', captain.team_id);
 
-      if (selectedPlayers.length > 0) {
-        const selectionsToInsert = selectedPlayers.map((selection, index) => ({
-          match_id: selectedMatch.id,
-          team_id: captain.team_id,
-          player_id: selection.player_id,
-          selection_order: index + 1,
-        }));
+      const selectionsToInsert = selectedPlayers.map((selection, index) => ({
+        match_id: selectedMatch.id,
+        team_id: captain.team_id,
+        player_id: selection.player_id,
+        selection_order: index + 1,
+      }));
 
-        const { error: insertError } = await supabase
-          .from('match_player_selections')
-          .insert(selectionsToInsert);
+      const { error: insertError } = await supabase
+        .from('match_player_selections')
+        .insert(selectionsToInsert);
 
-        if (insertError) throw insertError;
+      if (insertError) throw insertError;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-individual-matches`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ matchId: selectedMatch.id }),
+      });
+
+      const result = await response.json();
+      if (!result.success) {
+        console.log('Individual matches generation:', result.error);
       }
 
       setSuccess(true);
@@ -281,16 +336,17 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Choisir une rencontre</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {matches.map((match) => {
-            const isPassed = isMatchPassed(match.match_date);
+            const locked = isMatchLocked(match.match_date);
+            const daysUntil = getDaysUntilLock(match.match_date);
             return (
               <button
                 key={match.id}
                 onClick={() => setSelectedMatch(match)}
-                disabled={isPassed}
+                disabled={locked}
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
                   selectedMatch?.id === match.id
                     ? 'border-blue-500 bg-blue-50'
-                    : isPassed
+                    : locked
                     ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
                     : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
                 }`}
@@ -306,9 +362,11 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
                 <p className="text-sm font-semibold text-slate-900">
                   {match.is_home ? 'Domicile' : 'Extérieur'} vs {match.opponent_name}
                 </p>
-                {isPassed && (
-                  <p className="text-xs text-red-600 mt-2">Date dépassée</p>
-                )}
+                {locked ? (
+                  <p className="text-xs text-red-600 mt-2">Sélection verrouillée</p>
+                ) : daysUntil <= 7 && daysUntil > 0 ? (
+                  <p className="text-xs text-amber-600 mt-2">Verrouillage dans {daysUntil} jour{daysUntil > 1 ? 's' : ''}</p>
+                ) : null}
               </button>
             );
           })}
@@ -338,7 +396,16 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 flex items-start space-x-2">
               <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-amber-800">
-                La date de cette rencontre est dépassée. Vous ne pouvez plus modifier la sélection.
+                La sélection est verrouillée {daysBeforeLock} jour{daysBeforeLock > 1 ? 's' : ''} avant la rencontre.
+              </p>
+            </div>
+          )}
+
+          {canModifySelection() && getDaysUntilLock(selectedMatch.match_date) <= 7 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-blue-800">
+                La sélection sera verrouillée dans {getDaysUntilLock(selectedMatch.match_date)} jour{getDaysUntilLock(selectedMatch.match_date) > 1 ? 's' : ''}.
               </p>
             </div>
           )}
@@ -394,7 +461,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || selectedPlayers.length === 0}
+                disabled={saving || selectedPlayers.length !== getMaxPlayers(selectedMatch)}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4" />
