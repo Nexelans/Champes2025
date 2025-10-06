@@ -193,7 +193,7 @@ Deno.serve(async (req: Request) => {
 
       const temporaryPassword = specificCaptainId && captain.user_id
         ? null
-        : Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10).toUpperCase();
+        : "1234";
 
       let authUserId = captain.user_id;
 
@@ -225,62 +225,12 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      const resendApiKey = Deno.env.get("RESEND_API_KEY");
-      if (resendApiKey) {
-        try {
-          const emailHtml = specificCaptainId && captain.user_id
-            ? `
-              <h2>Rappel - Championnat Champe ${seasonData.name}</h2>
-              <p>Bonjour ${captain.first_name} ${captain.last_name},</p>
-              <p>Nous vous rappelons que vous êtes capitaine pour votre club <strong>${teamName}</strong> en <strong>${division === 'champe1' ? 'Champe 1' : 'Champe 2'}</strong>.</p>
-              <p>Si vous n'avez pas encore accédé à la plateforme, veuillez vous connecter avec votre adresse email : <strong>${captain.email}</strong></p>
-              <p>Si vous avez oublié votre mot de passe, utilisez la fonction "Mot de passe oublié" sur la page de connexion.</p>
-              <p>Vous pouvez accéder à la plateforme à l'adresse suivante : ${Deno.env.get("SUPABASE_URL")?.replace('/v1', '')}</p>
-              <p>Cordialement,<br>L'équipe du Championnat Champe</p>
-            `
-            : `
-              <h2>Bienvenue au Championnat Champe ${seasonData.name}</h2>
-              <p>Bonjour ${captain.first_name} ${captain.last_name},</p>
-              <p>Vous avez été désigné(e) comme capitaine pour votre club <strong>${teamName}</strong> en <strong>${division === 'champe1' ? 'Champe 1' : 'Champe 2'}</strong>.</p>
-              <p>Voici vos identifiants de connexion :</p>
-              <ul>
-                <li><strong>Email :</strong> ${captain.email}</li>
-                <li><strong>Mot de passe temporaire :</strong> ${temporaryPassword}</li>
-              </ul>
-              <p><strong>Important :</strong> Veuillez changer votre mot de passe lors de votre première connexion.</p>
-              <p>Vous pouvez accéder à la plateforme à l'adresse suivante : ${Deno.env.get("SUPABASE_URL")?.replace('/v1', '')}</p>
-              <p>Cordialement,<br>L'équipe du Championnat Champe</p>
-            `;
+      console.log(`Account created for ${captain.email} with password: 1234`);
+      sentEmails.push(`${teamName} (${division}) - Compte créé`);
 
-          const emailResponse = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${resendApiKey}`,
-            },
-            body: JSON.stringify({
-              from: "Championnat Champe <onboarding@resend.dev>",
-              to: [captain.email],
-              subject: specificCaptainId && captain.user_id
-                ? `Rappel - Championnat Champe ${seasonData.name}`
-                : `Invitation - Championnat Champe ${seasonData.name}`,
-              html: emailHtml,
-            }),
-          });
-
-          if (!emailResponse.ok) {
-            const errorText = await emailResponse.text();
-            console.error(`Email error for ${captain.email}:`, errorText);
-          } else {
-            sentEmails.push(`${teamName} (${division})`);
-          }
-        } catch (emailError) {
-          console.error(`Failed to send email to ${captain.email}:`, emailError);
-        }
-      } else {
-        console.log(`Would send email to ${captain.email}${temporaryPassword ? ` with password: ${temporaryPassword}` : ''}`);
-        sentEmails.push(`${teamName} (${division}) - Email simulation`);
-      }
+      // Email sending disabled for testing
+      // const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      // if (resendApiKey) { ... }
     }
 
     return new Response(
