@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trophy, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Minus, FileDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type StandingsProps = {
@@ -134,6 +134,10 @@ export default function Standings({ division }: StandingsProps) {
     }
   };
 
+  const handlePrintPDF = () => {
+    window.print();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -146,13 +150,24 @@ export default function Standings({ division }: StandingsProps) {
     <div className="space-y-6">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-sky-50">
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-emerald-600" />
-            Classement {division === 'champe1' ? 'Champe 1' : 'Champe 2'}
-          </h2>
-          <p className="text-sm text-slate-600 mt-1">
-            Saison 2024-2025 • {standings.length} équipes
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Trophy className="h-6 w-6 text-emerald-600" />
+                Classement {division === 'champe1' ? 'Champe 1' : 'Champe 2'}
+              </h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Saison 2024-2025 • {standings.length} équipes
+              </p>
+            </div>
+            <button
+              onClick={handlePrintPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors print:hidden"
+            >
+              <FileDown className="h-4 w-4" />
+              <span>Imprimer PDF</span>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
