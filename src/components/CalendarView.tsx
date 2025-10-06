@@ -14,6 +14,7 @@ type SeasonDate = {
   round_number: number;
   planned_date: string;
   host_club_id: string | null;
+  matchups?: Array<{ team1: string; team2: string }>;
 };
 
 type CalendarViewProps = {
@@ -44,17 +45,65 @@ export default function CalendarView({ division }: CalendarViewProps) {
         return;
       }
 
-      const { data: datesData } = await supabase
-        .from('season_dates')
-        .select('*')
+      const { data: matchesData } = await supabase
+        .from('matches')
+        .select(`
+          id,
+          division,
+          round_number,
+          match_date,
+          host_club_id,
+          team1:teams!matches_team1_id_fkey(id, club:clubs(name)),
+          team2:teams!matches_team2_id_fkey(id, club:clubs(name))
+        `)
         .eq('season_id', seasonData.id)
         .order('round_number');
 
-      if (datesData) {
-        const c1 = datesData.filter(d => d.division === 'champe1');
-        const c2 = datesData.filter(d => d.division === 'champe2');
-        setChampe1Dates(c1);
-        setChampe2Dates(c2);
+      if (matchesData) {
+        const groupedMatches: Record<string, any[]> = {};
+
+        matchesData.forEach((match: any) => {
+          const key = `${match.division}-${match.round_number}`;
+          if (!groupedMatches[key]) {
+            groupedMatches[key] = [];
+          }
+          groupedMatches[key].push({
+            team1: match.team1?.club?.name || 'Inconnu',
+            team2: match.team2?.club?.name || 'Inconnu',
+            date: match.match_date,
+          });
+        });
+
+        const c1Dates = Object.keys(groupedMatches)
+          .filter(k => k.startsWith('champe1-'))
+          .map(key => {
+            const matches = groupedMatches[key];
+            const roundNumber = parseInt(key.split('-')[1]);
+            return {
+              round_number: roundNumber,
+              planned_date: matches[0].date,
+              host_club_id: null,
+              matchups: matches.map(m => ({ team1: m.team1, team2: m.team2 })),
+            };
+          })
+          .sort((a, b) => a.round_number - b.round_number);
+
+        const c2Dates = Object.keys(groupedMatches)
+          .filter(k => k.startsWith('champe2-'))
+          .map(key => {
+            const matches = groupedMatches[key];
+            const roundNumber = parseInt(key.split('-')[1]);
+            return {
+              round_number: roundNumber,
+              planned_date: matches[0].date,
+              host_club_id: null,
+              matchups: matches.map(m => ({ team1: m.team1, team2: m.team2 })),
+            };
+          })
+          .sort((a, b) => a.round_number - b.round_number);
+
+        setChampe1Dates(c1Dates);
+        setChampe2Dates(c2Dates);
       }
     } catch (error) {
       console.error('Error loading dates:', error);
@@ -80,7 +129,7 @@ export default function CalendarView({ division }: CalendarViewProps) {
       round: d.round_number,
       division: 'Champe 1' as const,
       host: 'À définir',
-      matchups: []
+      matchups: d.matchups || []
     }));
 
   const champe2Matches: Match[] = champe2Dates
@@ -90,7 +139,7 @@ export default function CalendarView({ division }: CalendarViewProps) {
       round: d.round_number,
       division: 'Champe 2' as const,
       host: 'À définir',
-      matchups: []
+      matchups: d.matchups || []
     }));
 
   const finals = {

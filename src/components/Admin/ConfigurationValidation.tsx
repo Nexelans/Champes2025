@@ -132,6 +132,36 @@ export default function ConfigurationValidation() {
 
     setProcessing(true);
     try {
+      setMessage({
+        type: 'success',
+        text: 'Génération du calendrier des matchs...',
+      });
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error('No session found');
+      }
+
+      const generateMatchesUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-matches`;
+      const generateResponse = await fetch(generateMatchesUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionData.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!generateResponse.ok) {
+        throw new Error('Failed to generate matches');
+      }
+
+      const generateResult = await generateResponse.json();
+
+      if (!generateResult.success) {
+        throw new Error(generateResult.error || 'Failed to generate matches');
+      }
+
       const { error } = await supabase
         .from('seasons')
         .update({
@@ -145,33 +175,30 @@ export default function ConfigurationValidation() {
 
       setMessage({
         type: 'success',
-        text: 'Configuration validée. Envoi des invitations en cours...',
+        text: `${generateResult.matchesCreated} match(s) généré(s). Envoi des invitations...`,
       });
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session) {
-        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-captain-invitations`;
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${sessionData.session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({}),
-        });
+      const invitationsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-captain-invitations`;
+      const invitationsResponse = await fetch(invitationsUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionData.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
 
-        if (response.ok) {
-          const result = await response.json();
-          setMessage({
-            type: 'success',
-            text: `Configuration validée avec succès. ${result.sent} invitation(s) envoyée(s).${result.errors ? ` ${result.errors.length} erreur(s).` : ''}`,
-          });
-        } else {
-          setMessage({
-            type: 'success',
-            text: 'Configuration validée. Attention : erreur lors de l\'envoi des invitations.',
-          });
-        }
+      if (invitationsResponse.ok) {
+        const result = await invitationsResponse.json();
+        setMessage({
+          type: 'success',
+          text: `Configuration validée ! ${generateResult.matchesCreated} match(s) créé(s). ${result.sent} invitation(s) envoyée(s).`,
+        });
+      } else {
+        setMessage({
+          type: 'success',
+          text: `Configuration validée. ${generateResult.matchesCreated} match(s) créé(s). Attention : erreur lors de l'envoi des invitations.`,
+        });
       }
 
       await loadValidationStatus();
