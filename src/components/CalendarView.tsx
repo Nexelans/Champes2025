@@ -1,4 +1,6 @@
-import { MapPin } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { MapPin, Loader2, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 type Match = {
   date: string;
@@ -8,127 +10,106 @@ type Match = {
   matchups: Array<{ team1: string; team2: string }>;
 };
 
-export default function CalendarView() {
-  const champe1Matches: Match[] = [
-    {
-      date: '17/11/2024',
-      round: 1,
-      division: 'Champe 1',
-      host: 'La Sorelle',
-      matchups: [
-        { team1: 'La Sorelle', team2: 'Mionnay' },
-        { team1: '3 Vallons', team2: 'Le Clou' },
-        { team1: 'Bourg en Bresse', team2: 'Chassieu' },
-      ],
-    },
-    {
-      date: '01/12/2024',
-      round: 2,
-      division: 'Champe 1',
-      host: 'Le Clou',
-      matchups: [
-        { team1: 'Le Clou', team2: 'Bourg en Bresse' },
-        { team1: 'Mionnay', team2: 'Chassieu' },
-        { team1: '3 Vallons', team2: 'La Sorelle' },
-      ],
-    },
-    {
-      date: '15/12/2024',
-      round: 3,
-      division: 'Champe 1',
-      host: '3 Vallons',
-      matchups: [
-        { team1: '3 Vallons', team2: 'Chassieu' },
-        { team1: 'Mionnay', team2: 'Bourg en Bresse' },
-        { team1: 'La Sorelle', team2: 'Le Clou' },
-      ],
-    },
-    {
-      date: '19/01/2025',
-      round: 4,
-      division: 'Champe 1',
-      host: 'Mionnay',
-      matchups: [
-        { team1: 'Mionnay', team2: 'Le Clou' },
-        { team1: '3 Vallons', team2: 'Bourg en Bresse' },
-        { team1: 'La Sorelle', team2: 'Chassieu' },
-      ],
-    },
-    {
-      date: '09/02/2025',
-      round: 5,
-      division: 'Champe 1',
-      host: 'Bourg en Bresse',
-      matchups: [
-        { team1: 'Bourg en Bresse', team2: 'La Sorelle' },
-        { team1: 'Le Clou', team2: 'Chassieu' },
-        { team1: '3 Vallons', team2: 'Mionnay' },
-      ],
-    },
-  ];
+type SeasonDate = {
+  round_number: number;
+  planned_date: string;
+  host_club_id: string | null;
+};
 
-  const champe2Matches: Match[] = [
-    {
-      date: '01/12/2024',
-      round: 1,
-      division: 'Champe 2',
-      host: 'La Sorelle',
-      matchups: [
-        { team1: 'La Sorelle', team2: 'Le Clou' },
-        { team1: 'Mionnay', team2: '3 Vallons' },
-        { team1: 'Chassieu', team2: 'Bourg en Bresse' },
-      ],
-    },
-    {
-      date: '12/01/2025',
-      round: 2,
-      division: 'Champe 2',
-      host: 'Chassieu',
-      matchups: [
-        { team1: 'Chassieu', team2: '3 Vallons' },
-        { team1: 'Mionnay', team2: 'Le Clou' },
-        { team1: 'Bourg en Bresse', team2: 'La Sorelle' },
-      ],
-    },
-    {
-      date: '26/01/2025',
-      round: 3,
-      division: 'Champe 2',
-      host: 'Mionnay',
-      matchups: [
-        { team1: 'Mionnay', team2: 'La Sorelle' },
-        { team1: 'Chassieu', team2: 'Le Clou' },
-        { team1: 'Bourg en Bresse', team2: '3 Vallons' },
-      ],
-    },
-    {
-      date: '09/02/2025',
-      round: 4,
-      division: 'Champe 2',
-      host: 'Le Clou',
-      matchups: [
-        { team1: 'Le Clou', team2: 'Bourg en Bresse' },
-        { team1: 'La Sorelle', team2: '3 Vallons' },
-        { team1: 'Chassieu', team2: 'Mionnay' },
-      ],
-    },
-    {
-      date: '23/02/2025',
-      round: 5,
-      division: 'Champe 2',
-      host: 'Bourg en Bresse',
-      matchups: [
-        { team1: 'Bourg en Bresse', team2: 'Mionnay' },
-        { team1: 'Chassieu', team2: 'La Sorelle' },
-        { team1: 'Le Clou', team2: '3 Vallons' },
-      ],
-    },
-  ];
+export default function CalendarView() {
+  const [loading, setLoading] = useState(true);
+  const [champe1Dates, setChampe1Dates] = useState<SeasonDate[]>([]);
+  const [champe2Dates, setChampe2Dates] = useState<SeasonDate[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadDates();
+  }, []);
+
+  const loadDates = async () => {
+    try {
+      const { data: seasonData } = await supabase
+        .from('seasons')
+        .select('id')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!seasonData) {
+        setError('Aucune saison active');
+        setLoading(false);
+        return;
+      }
+
+      const { data: datesData } = await supabase
+        .from('season_dates')
+        .select('*')
+        .eq('season_id', seasonData.id)
+        .order('round_number');
+
+      if (datesData) {
+        const c1 = datesData.filter(d => d.division === 'champe1');
+        const c2 = datesData.filter(d => d.division === 'champe2');
+        setChampe1Dates(c1);
+        setChampe2Dates(c2);
+      }
+    } catch (error) {
+      console.error('Error loading dates:', error);
+      setError('Erreur lors du chargement des dates');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  const champe1Matches: Match[] = champe1Dates
+    .filter(d => d.round_number <= 5)
+    .map(d => ({
+      date: formatDate(d.planned_date),
+      round: d.round_number,
+      division: 'Champe 1' as const,
+      host: 'À définir',
+      matchups: []
+    }));
+
+  const champe2Matches: Match[] = champe2Dates
+    .filter(d => d.round_number <= 5)
+    .map(d => ({
+      date: formatDate(d.planned_date),
+      round: d.round_number,
+      division: 'Champe 2' as const,
+      host: 'À définir',
+      matchups: []
+    }));
 
   const finals = {
-    champe1: { date: '02/03/2025', host: 'Chassieu' },
-    champe2: { date: '02/03/2025', host: '3 Vallons' },
+    champe1: champe1Dates.find(d => d.round_number === 6),
+    champe2: champe2Dates.find(d => d.round_number === 6),
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-12 w-12 text-emerald-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-3" />
+        <p className="text-red-900 font-medium">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -152,35 +133,41 @@ export default function CalendarView() {
                   <span className="text-sm font-medium">{match.host}</span>
                 </div>
               </div>
-              <div className="space-y-2">
-                {match.matchups.map((matchup, midx) => (
-                  <div
-                    key={midx}
-                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
-                  >
-                    <span className="font-medium text-slate-900">{matchup.team1}</span>
-                    <span className="text-slate-400 font-semibold">vs</span>
-                    <span className="font-medium text-slate-900">{matchup.team2}</span>
-                  </div>
-                ))}
-              </div>
+              {match.matchups.length > 0 ? (
+                <div className="space-y-2">
+                  {match.matchups.map((matchup, midx) => (
+                    <div
+                      key={midx}
+                      className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                    >
+                      <span className="font-medium text-slate-900">{matchup.team1}</span>
+                      <span className="text-slate-400 font-semibold">vs</span>
+                      <span className="font-medium text-slate-900">{matchup.team2}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 italic mt-4">Les matchs seront générés automatiquement</p>
+              )}
             </div>
           ))}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-sm p-6 text-white">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Finale Champe 1</h3>
-                <p className="text-sm text-blue-100">{finals.champe1.date}</p>
+          {finals.champe1 && (
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-lg shadow-sm p-6 text-white">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Finale Champe 1</h3>
+                  <p className="text-sm text-emerald-100">{formatDate(finals.champe1.planned_date)}</p>
+                </div>
+                <div className="flex items-center space-x-2 bg-white/20 px-3 py-1 rounded-full">
+                  <MapPin className="w-4 h-4" />
+                  <span className="text-sm font-medium">À définir</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2 bg-white/20 px-3 py-1 rounded-full">
-                <MapPin className="w-4 h-4" />
-                <span className="text-sm font-medium">{finals.champe1.host}</span>
-              </div>
+              <p className="mt-4 text-sm text-emerald-100">
+                Finale en foursome à 10 joueurs par équipe
+              </p>
             </div>
-            <p className="mt-4 text-sm text-blue-100">
-              Finale en foursome à 10 joueurs par équipe
-            </p>
-          </div>
+          )}
         </div>
       </div>
 
@@ -199,40 +186,46 @@ export default function CalendarView() {
                   </h3>
                   <p className="text-sm text-slate-600">{match.date}</p>
                 </div>
-                <div className="flex items-center space-x-2 text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                <div className="flex items-center space-x-2 text-sky-600 bg-sky-50 px-3 py-1 rounded-full">
                   <MapPin className="w-4 h-4" />
                   <span className="text-sm font-medium">{match.host}</span>
                 </div>
               </div>
-              <div className="space-y-2">
-                {match.matchups.map((matchup, midx) => (
-                  <div
-                    key={midx}
-                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
-                  >
-                    <span className="font-medium text-slate-900">{matchup.team1}</span>
-                    <span className="text-slate-400 font-semibold">vs</span>
-                    <span className="font-medium text-slate-900">{matchup.team2}</span>
-                  </div>
-                ))}
-              </div>
+              {match.matchups.length > 0 ? (
+                <div className="space-y-2">
+                  {match.matchups.map((matchup, midx) => (
+                    <div
+                      key={midx}
+                      className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                    >
+                      <span className="font-medium text-slate-900">{matchup.team1}</span>
+                      <span className="text-slate-400 font-semibold">vs</span>
+                      <span className="font-medium text-slate-900">{matchup.team2}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 italic mt-4">Les matchs seront générés automatiquement</p>
+              )}
             </div>
           ))}
-          <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg shadow-sm p-6 text-white">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Finale Champe 2</h3>
-                <p className="text-sm text-green-100">{finals.champe2.date}</p>
+          {finals.champe2 && (
+            <div className="bg-gradient-to-r from-sky-600 to-sky-700 rounded-lg shadow-sm p-6 text-white">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Finale Champe 2</h3>
+                  <p className="text-sm text-sky-100">{formatDate(finals.champe2.planned_date)}</p>
+                </div>
+                <div className="flex items-center space-x-2 bg-white/20 px-3 py-1 rounded-full">
+                  <MapPin className="w-4 h-4" />
+                  <span className="text-sm font-medium">À définir</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2 bg-white/20 px-3 py-1 rounded-full">
-                <MapPin className="w-4 h-4" />
-                <span className="text-sm font-medium">{finals.champe2.host}</span>
-              </div>
+              <p className="mt-4 text-sm text-sky-100">
+                Finale en foursome à 10 joueurs par équipe
+              </p>
             </div>
-            <p className="mt-4 text-sm text-green-100">
-              Finale en foursome à 10 joueurs par équipe
-            </p>
-          </div>
+          )}
         </div>
       </div>
     </div>
