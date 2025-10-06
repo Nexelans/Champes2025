@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Edit2, Trash2, Check, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { Users, Plus, CreditCard as Edit2, Trash2, Check, X, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, type Player } from '../../lib/supabase';
 
