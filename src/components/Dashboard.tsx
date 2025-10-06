@@ -13,7 +13,8 @@ type ClubStats = {
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [clubs, setClubs] = useState<ClubStats[]>([]);
-  const [totalTeams, setTotalTeams] = useState(0);
+  const [champe1Count, setChampe1Count] = useState(0);
+  const [champe2Count, setChampe2Count] = useState(0);
 
   useEffect(() => {
     loadDashboardData();
@@ -44,6 +45,8 @@ export default function Dashboard() {
 
       if (seasonClubsData) {
         const clubMap = new Map<string, ClubStats>();
+        let c1 = 0;
+        let c2 = 0;
 
         seasonClubsData.forEach((sc: any) => {
           if (!clubMap.has(sc.club_id)) {
@@ -60,10 +63,12 @@ export default function Dashboard() {
           if (sc.division === 'champe1' && sc.is_participating) {
             club.champe1_participating = true;
             club.team_count++;
+            c1++;
           }
           if (sc.division === 'champe2' && sc.is_participating) {
             club.champe2_participating = true;
             club.team_count++;
+            c2++;
           }
         });
 
@@ -72,7 +77,8 @@ export default function Dashboard() {
           .sort((a, b) => a.club_name.localeCompare(b.club_name));
 
         setClubs(clubsArray);
-        setTotalTeams(clubsArray.reduce((sum, c) => sum + c.team_count, 0));
+        setChampe1Count(c1);
+        setChampe2Count(c2);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -82,8 +88,8 @@ export default function Dashboard() {
   };
 
   const stats = [
-    { label: 'Clubs participants', value: clubs.length.toString(), icon: Users },
-    { label: 'Équipes totales', value: totalTeams.toString(), icon: Trophy },
+    { label: 'Équipes Champe 1', value: champe1Count.toString(), icon: Trophy },
+    { label: 'Équipes Champe 2', value: champe2Count.toString(), icon: Trophy },
     { label: 'Rencontres jouées', value: '0/5', icon: Calendar },
   ];
 
