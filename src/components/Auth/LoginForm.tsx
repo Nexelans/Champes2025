@@ -21,7 +21,7 @@ export default function LoginForm() {
     const { error } = await signIn(email, password);
 
     if (error) {
-      setError('Email ou mot de passe incorrect');
+      setError(error.message || 'Email ou mot de passe incorrect');
     }
 
     setLoading(false);

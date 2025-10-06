@@ -131,11 +131,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    return { error };
+
+    if (error) {
+      return { error };
+    }
+
+    if (data.user) {
+      const { data: adminData } = await supabase
+        .from('admin_users')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .maybeSingle();
+
+      if (!adminData) {
+        const { data: seasonData } = await supabase
+          .from('seasons')
+          .select('is_configuration_validated')
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (!seasonData?.is_configuration_validated) {
+          await supabase.auth.signOut();
+          return {
+            error: {
+              message: 'La configuration du championnat n\'est pas encore validée. Veuillez contacter l\'administrateur.',
+            },
+          };
+        }
+      }
+    }
+
+    return { error: null };
   };
 
   const signUp = async (email: string, password: string) => {
