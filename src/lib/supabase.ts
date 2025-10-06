@@ -109,3 +109,14 @@ export type SeasonDate = {
   host_club_id: string | null;
   created_at: string;
 };
+
+export type MatchLineup = {
+  id: string;
+  match_id: string;
+  team_id: string;
+  player_id: string;
+  playing_order: number;
+  partner_player_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
