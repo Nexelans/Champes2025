@@ -98,6 +98,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           last_name,
           phone,
           email,
+          first_login_at,
+          last_login_at,
+          login_count,
           teams!inner(
             club_id,
             division,
@@ -122,6 +125,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           club_name: team.clubs.name,
           division: team.division,
         });
+
+        const currentCaptain = captainData as any;
+        const now = new Date().toISOString();
+        const updates: any = {
+          last_login_at: now,
+          login_count: (currentCaptain.login_count || 0) + 1,
+        };
+
+        if (!currentCaptain.first_login_at) {
+          updates.first_login_at = now;
+        }
+
+        await supabase
+          .from('captains')
+          .update(updates)
+          .eq('id', captainData.id);
       }
     } catch (error) {
       console.error('Error loading user info:', error);

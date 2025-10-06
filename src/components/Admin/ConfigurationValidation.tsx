@@ -145,8 +145,34 @@ export default function ConfigurationValidation() {
 
       setMessage({
         type: 'success',
-        text: 'Configuration validée avec succès',
+        text: 'Configuration validée. Envoi des invitations en cours...',
       });
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-captain-invitations`;
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sessionData.session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setMessage({
+            type: 'success',
+            text: `Configuration validée avec succès. ${result.sent} invitation(s) envoyée(s).${result.errors ? ` ${result.errors.length} erreur(s).` : ''}`,
+          });
+        } else {
+          setMessage({
+            type: 'success',
+            text: 'Configuration validée. Attention : erreur lors de l\'envoi des invitations.',
+          });
+        }
+      }
+
       await loadValidationStatus();
     } catch (error) {
       console.error('Error validating configuration:', error);

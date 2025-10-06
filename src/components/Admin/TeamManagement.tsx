@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, CreditCard as Edit2, Trash2, Check, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { Users, Plus, CreditCard as Edit2, Trash2, Check, X, AlertCircle, CheckCircle, Mail, Clock, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 type Club = {
@@ -18,6 +18,10 @@ type Team = {
     last_name: string;
     phone: string;
     email: string;
+    invitation_sent_at: string | null;
+    first_login_at: string | null;
+    last_login_at: string | null;
+    login_count: number;
   };
 };
 
@@ -187,6 +191,43 @@ export default function TeamManagement() {
     } catch (error) {
       console.error('Error deleting captain:', error);
       setMessage({ type: 'error', text: 'Erreur lors de la suppression' });
+    }
+  };
+
+  const handleResendInvitation = async (captainId: string, captainName: string) => {
+    if (!confirm(`Renvoyer l'invitation à ${captainName} ?`)) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        setMessage({ type: 'error', text: 'Session expirée' });
+        return;
+      }
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-captain-invitations`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionData.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ captain_id: captainId }),
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Invitation renvoyée avec succès' });
+        await loadData();
+      } else {
+        setMessage({ type: 'error', text: 'Erreur lors de l\'envoi de l\'invitation' });
+      }
+    } catch (error) {
+      console.error('Error resending invitation:', error);
+      setMessage({ type: 'error', text: 'Erreur lors de l\'envoi de l\'invitation' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -363,10 +404,10 @@ export default function TeamManagement() {
                   Capitaine
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
-                  Téléphone
+                  Contact
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
-                  Email
+                  Statut
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase">
                   Actions
@@ -393,25 +434,86 @@ export default function TeamManagement() {
                       <span className="text-sm text-slate-400 italic">Aucun capitaine</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    {team.captain?.phone || '-'}
+                  <td className="px-4 py-3">
+                    {team.captain ? (
+                      <div className="text-sm">
+                        <div className="text-slate-900">{team.captain.phone}</div>
+                        <div className="text-slate-600">{team.captain.email}</div>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-400">-</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    {team.captain?.email || '-'}
+                  <td className="px-4 py-3">
+                    {team.captain ? (
+                      <div className="space-y-1">
+                        {team.captain.invitation_sent_at ? (
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <Mail className="h-3.5 w-3.5 text-emerald-600" />
+                            <span className="text-slate-600">
+                              Invitation envoyée
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <Clock className="h-3.5 w-3.5 text-amber-600" />
+                            <span className="text-slate-600">En attente</span>
+                          </div>
+                        )}
+                        {team.captain.first_login_at ? (
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
+                            <span className="text-slate-600">
+                              Connecté ({team.captain.login_count}x)
+                            </span>
+                          </div>
+                        ) : team.captain.invitation_sent_at ? (
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                            <span className="text-amber-700 font-medium">
+                              Pas encore connecté
+                            </span>
+                          </div>
+                        ) : null}
+                        {team.captain.last_login_at && (
+                          <div className="text-xs text-slate-500">
+                            Dernière visite: {new Date(team.captain.last_login_at).toLocaleDateString('fr-FR')}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-400">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-2">
                       {team.captain ? (
                         <>
+                          {team.captain.invitation_sent_at && !team.captain.first_login_at && (
+                            <button
+                              onClick={() =>
+                                handleResendInvitation(
+                                  team.captain!.id,
+                                  `${team.captain!.first_name} ${team.captain!.last_name}`
+                                )
+                              }
+                              className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Renvoyer l'invitation"
+                            >
+                              <Mail className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleEdit(team)}
                             className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                            title="Modifier"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(team.captain!.id)}
                             className="p-1.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Supprimer"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
