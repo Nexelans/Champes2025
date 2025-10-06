@@ -85,28 +85,30 @@ function App() {
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setDivision('champe1')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    division === 'champe1'
-                      ? 'bg-white text-emerald-700 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Champe 1
-                </button>
-                <button
-                  onClick={() => setDivision('champe2')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    division === 'champe2'
-                      ? 'bg-white text-emerald-700 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Champe 2
-                </button>
-              </div>
+              {['calendar', 'standings', 'teams'].includes(activeTab) && (
+                <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => setDivision('champe1')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      division === 'champe1'
+                        ? 'bg-white text-emerald-700 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Champe 1
+                  </button>
+                  <button
+                    onClick={() => setDivision('champe2')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      division === 'champe2'
+                        ? 'bg-white text-emerald-700 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Champe 2
+                  </button>
+                </div>
+              )}
 
               {user && (
                 <button
@@ -145,7 +147,7 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'dashboard' && <Dashboard division={division} />}
+        {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'calendar' && <CalendarView division={division} />}
         {activeTab === 'standings' && <Standings division={division} />}
         {activeTab === 'teams' && <Teams division={division} />}

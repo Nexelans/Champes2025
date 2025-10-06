@@ -16,7 +16,11 @@ type SeasonDate = {
   host_club_id: string | null;
 };
 
-export default function CalendarView() {
+type CalendarViewProps = {
+  division: 'champe1' | 'champe2';
+};
+
+export default function CalendarView({ division }: CalendarViewProps) {
   const [loading, setLoading] = useState(true);
   const [champe1Dates, setChampe1Dates] = useState<SeasonDate[]>([]);
   const [champe2Dates, setChampe2Dates] = useState<SeasonDate[]>([]);
@@ -111,12 +115,19 @@ export default function CalendarView() {
     );
   }
 
+  const matches = division === 'champe1' ? champe1Matches : champe2Matches;
+  const finalDate = division === 'champe1' ? finals.champe1 : finals.champe2;
+  const divisionLabel = division === 'champe1' ? 'Champe 1' : 'Champe 2';
+  const colorClasses = division === 'champe1'
+    ? { badge: 'text-blue-600 bg-blue-50', gradient: 'from-emerald-600 to-emerald-700', text: 'text-emerald-100' }
+    : { badge: 'text-sky-600 bg-sky-50', gradient: 'from-sky-600 to-sky-700', text: 'text-sky-100' };
+
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">Calendrier Champe 1</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">Calendrier {divisionLabel}</h2>
         <div className="space-y-4">
-          {champe1Matches.map((match, idx) => (
+          {matches.map((match, idx) => (
             <div
               key={idx}
               className="bg-white rounded-lg shadow-sm border border-slate-200 p-6"
@@ -128,7 +139,7 @@ export default function CalendarView() {
                   </h3>
                   <p className="text-sm text-slate-600">{match.date}</p>
                 </div>
-                <div className="flex items-center space-x-2 text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                <div className={`flex items-center space-x-2 ${colorClasses.badge} px-3 py-1 rounded-full`}>
                   <MapPin className="w-4 h-4" />
                   <span className="text-sm font-medium">{match.host}</span>
                 </div>
@@ -151,77 +162,19 @@ export default function CalendarView() {
               )}
             </div>
           ))}
-          {finals.champe1 && (
-            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-lg shadow-sm p-6 text-white">
+          {finalDate && (
+            <div className={`bg-gradient-to-r ${colorClasses.gradient} rounded-lg shadow-sm p-6 text-white`}>
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">Finale Champe 1</h3>
-                  <p className="text-sm text-emerald-100">{formatDate(finals.champe1.planned_date)}</p>
+                  <h3 className="text-lg font-semibold">Finale {divisionLabel}</h3>
+                  <p className={`text-sm ${colorClasses.text}`}>{formatDate(finalDate.planned_date)}</p>
                 </div>
                 <div className="flex items-center space-x-2 bg-white/20 px-3 py-1 rounded-full">
                   <MapPin className="w-4 h-4" />
                   <span className="text-sm font-medium">À définir</span>
                 </div>
               </div>
-              <p className="mt-4 text-sm text-emerald-100">
-                Finale en foursome à 10 joueurs par équipe
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">Calendrier Champe 2</h2>
-        <div className="space-y-4">
-          {champe2Matches.map((match, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-lg shadow-sm border border-slate-200 p-6"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    Journée {match.round}
-                  </h3>
-                  <p className="text-sm text-slate-600">{match.date}</p>
-                </div>
-                <div className="flex items-center space-x-2 text-sky-600 bg-sky-50 px-3 py-1 rounded-full">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-sm font-medium">{match.host}</span>
-                </div>
-              </div>
-              {match.matchups.length > 0 ? (
-                <div className="space-y-2">
-                  {match.matchups.map((matchup, midx) => (
-                    <div
-                      key={midx}
-                      className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
-                    >
-                      <span className="font-medium text-slate-900">{matchup.team1}</span>
-                      <span className="text-slate-400 font-semibold">vs</span>
-                      <span className="font-medium text-slate-900">{matchup.team2}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500 italic mt-4">Les matchs seront générés automatiquement</p>
-              )}
-            </div>
-          ))}
-          {finals.champe2 && (
-            <div className="bg-gradient-to-r from-sky-600 to-sky-700 rounded-lg shadow-sm p-6 text-white">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Finale Champe 2</h3>
-                  <p className="text-sm text-sky-100">{formatDate(finals.champe2.planned_date)}</p>
-                </div>
-                <div className="flex items-center space-x-2 bg-white/20 px-3 py-1 rounded-full">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-sm font-medium">À définir</span>
-                </div>
-              </div>
-              <p className="mt-4 text-sm text-sky-100">
+              <p className={`mt-4 text-sm ${colorClasses.text}`}>
                 Finale en foursome à 10 joueurs par équipe
               </p>
             </div>
