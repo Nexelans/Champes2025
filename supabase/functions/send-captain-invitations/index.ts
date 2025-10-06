@@ -70,8 +70,20 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const body = req.method === "POST" ? await req.json() : {};
-    const specificCaptainId = body.captain_id;
+    let body: any = {};
+    let specificCaptainId = null;
+
+    if (req.method === "POST") {
+      try {
+        const text = await req.text();
+        if (text) {
+          body = JSON.parse(text);
+          specificCaptainId = body.captain_id;
+        }
+      } catch (e) {
+        console.log("No JSON body provided");
+      }
+    }
 
     const { data: seasonData } = await supabaseClient
       .from("seasons")

@@ -157,6 +157,7 @@ export default function ConfigurationValidation() {
             'Authorization': `Bearer ${sessionData.session.access_token}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({}),
         });
 
         if (response.ok) {
