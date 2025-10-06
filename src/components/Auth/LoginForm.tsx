@@ -3,7 +3,11 @@ import { LogIn, AlertCircle, Mail } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
-export default function LoginForm() {
+interface LoginFormProps {
+  onClose?: () => void;
+}
+
+export default function LoginForm({ onClose }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -49,9 +53,9 @@ export default function LoginForm() {
 
   if (showResetPassword) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-slate-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
+      <div className={onClose ? "" : "min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-slate-50 flex items-center justify-center p-4"}>
+        <div className={onClose ? "w-full" : "w-full max-w-md"}>
+          <div className={onClose ? "" : "bg-white rounded-2xl shadow-xl p-8 border border-slate-200"}>
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
                 <Mail className="h-8 w-8 text-emerald-600" />
@@ -134,18 +138,20 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
-              <LogIn className="h-8 w-8 text-emerald-600" />
+    <div className={onClose ? "" : "min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-slate-50 flex items-center justify-center p-4"}>
+      <div className={onClose ? "w-full" : "w-full max-w-md"}>
+        <div className={onClose ? "" : "bg-white rounded-2xl shadow-xl p-8 border border-slate-200"}>
+          {!onClose && (
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
+                <LogIn className="h-8 w-8 text-emerald-600" />
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900">Connexion Capitaine</h1>
+              <p className="text-sm text-slate-600 mt-2">
+                Championnat Champe 2024-2025
+              </p>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">Connexion Capitaine</h1>
-            <p className="text-sm text-slate-600 mt-2">
-              Championnat Champe 2024-2025
-            </p>
-          </div>
+          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
@@ -204,27 +210,29 @@ export default function LoginForm() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-200">
-            <div className="text-center">
-              <button
-                onClick={() => setShowResetPassword(true)}
-                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
-              >
-                Mot de passe oublié ?
-              </button>
+          {!onClose && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <div className="text-center">
+                <button
+                  onClick={() => setShowResetPassword(true)}
+                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
+                >
+                  Mot de passe oublié ?
+                </button>
+              </div>
+              <p className="text-sm text-slate-600 text-center mt-4">
+                Première connexion ? Contactez l'administrateur pour créer votre compte.
+              </p>
+              <div className="mt-4 text-center">
+                <a
+                  href="?setup=admin"
+                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  Configuration initiale
+                </a>
+              </div>
             </div>
-            <p className="text-sm text-slate-600 text-center mt-4">
-              Première connexion ? Contactez l'administrateur pour créer votre compte.
-            </p>
-            <div className="mt-4 text-center">
-              <a
-                href="?setup=admin"
-                className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                Configuration initiale
-              </a>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
