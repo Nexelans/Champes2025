@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList, Swords, CreditCard as Edit3, LogIn } from 'lucide-react';
+import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList, Swords, Edit3, LogIn, BookOpen } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginForm from './components/Auth/LoginForm';
 import CreateAdmin from './components/Admin/CreateAdmin';
@@ -15,8 +15,9 @@ import PlayersManagement from './components/Captain/PlayersManagement';
 import TeamSelection from './components/Captain/TeamSelection';
 import MatchesView from './components/MatchesView';
 import ResultsEntry from './components/ResultsEntry';
+import HelpPage from './components/HelpPage';
 
-type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'matches' | 'setup' | 'profile' | 'players' | 'team-management' | 'validation' | 'selection' | 'results';
+type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'matches' | 'setup' | 'profile' | 'players' | 'team-management' | 'validation' | 'selection' | 'results' | 'help';
 
 function App() {
   const { user, captain, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -44,6 +45,7 @@ function App() {
     { id: 'matches' as Tab, label: 'Rencontres', icon: Swords },
     { id: 'standings' as Tab, label: 'Classement', icon: Award },
     { id: 'teams' as Tab, label: 'Équipes', icon: Users },
+    { id: 'help' as Tab, label: 'Aide', icon: BookOpen },
   ];
 
   const captainTabs = [
@@ -181,6 +183,7 @@ function App() {
         {activeTab === 'matches' && <MatchesView division={division} />}
         {activeTab === 'standings' && <Standings division={division} />}
         {activeTab === 'teams' && <Teams division={division} />}
+        {activeTab === 'help' && <HelpPage />}
         {activeTab === 'profile' && <ProfileManagement />}
         {activeTab === 'players' && <PlayersManagement />}
         {activeTab === 'selection' && captain && <TeamSelection captain={captain} />}
