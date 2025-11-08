@@ -203,9 +203,18 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
+      const generatePassword = () => {
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
+        let password = '';
+        for (let i = 0; i < 12; i++) {
+          password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return password;
+      };
+
       const temporaryPassword = specificCaptainId && captain.user_id
-        ? null
-        : "1234";
+        ? generatePassword()
+        : generatePassword();
 
       let authUserId = captain.user_id;
 
@@ -222,6 +231,16 @@ Deno.serve(async (req: Request) => {
         }
 
         authUserId = authData.user.id;
+      } else if (captain.user_id && specificCaptainId && temporaryPassword) {
+        const { error: resetError } = await supabaseClient.auth.admin.updateUserById(
+          captain.user_id,
+          { password: temporaryPassword }
+        );
+
+        if (resetError) {
+          errors.push(`${teamName} (${division}): Failed to reset password - ${resetError.message}`);
+          continue;
+        }
       }
 
       const { error: updateError } = await supabaseClient
@@ -237,8 +256,8 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      console.log(`Account created for ${captain.email} with password: 1234`);
-      sentEmails.push(`${teamName} (${division}) - Compte créé`);
+      console.log(`Account created/updated for ${captain.email} with password: ${temporaryPassword}`);
+      sentEmails.push(`${teamName} (${division}) - ${captain.email} - Password: ${temporaryPassword}`);
 
       // Email sending disabled for testing
       // const resendApiKey = Deno.env.get("RESEND_API_KEY");

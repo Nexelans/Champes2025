@@ -202,8 +202,8 @@ export default function TeamManagement() {
     }
   };
 
-  const handleResendInvitation = async (captainId: string, captainName: string) => {
-    if (!confirm(`Renvoyer l'invitation à ${captainName} ?`)) return;
+  const handleSendCredentials = async (captainId: string, captainName: string) => {
+    if (!confirm(`Générer et envoyer un nouveau mot de passe à ${captainName} ?`)) return;
 
     setLoading(true);
     setMessage(null);
@@ -226,14 +226,27 @@ export default function TeamManagement() {
       });
 
       if (response.ok) {
-        setMessage({ type: 'success', text: 'Invitation renvoyée avec succès' });
+        const result = await response.json();
+        if (result.sentTo && result.sentTo.length > 0) {
+          const credentials = result.sentTo[0];
+          setMessage({
+            type: 'success',
+            text: `Identifiants générés : ${credentials}`
+          });
+        } else {
+          setMessage({ type: 'success', text: 'Identifiants générés avec succès' });
+        }
         await loadData();
       } else {
-        setMessage({ type: 'error', text: 'Erreur lors de l\'envoi de l\'invitation' });
+        const errorData = await response.json();
+        setMessage({
+          type: 'error',
+          text: errorData.errors?.[0] || 'Erreur lors de la génération des identifiants'
+        });
       }
     } catch (error) {
-      console.error('Error resending invitation:', error);
-      setMessage({ type: 'error', text: 'Erreur lors de l\'envoi de l\'invitation' });
+      console.error('Error sending credentials:', error);
+      setMessage({ type: 'error', text: 'Erreur lors de la génération des identifiants' });
     } finally {
       setLoading(false);
     }
@@ -586,20 +599,18 @@ export default function TeamManagement() {
                     <div className="flex items-center justify-center gap-2">
                       {team.captain ? (
                         <>
-                          {team.captain.invitation_sent_at && !team.captain.first_login_at && (
-                            <button
-                              onClick={() =>
-                                handleResendInvitation(
-                                  team.captain!.id,
-                                  `${team.captain!.first_name} ${team.captain!.last_name}`
-                                )
-                              }
-                              className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                              title="Renvoyer l'invitation"
-                            >
-                              <Mail className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() =>
+                              handleSendCredentials(
+                                team.captain!.id,
+                                `${team.captain!.first_name} ${team.captain!.last_name}`
+                              )
+                            }
+                            className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Générer et envoyer identifiants"
+                          >
+                            <Mail className="h-4 w-4" />
+                          </button>
                           <button
                             onClick={() => handleEdit(team)}
                             className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
