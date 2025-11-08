@@ -29,6 +29,7 @@ export default function Teams({ division }: TeamsProps) {
   const loadTeams = async () => {
     setLoading(true);
     try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       const { data: season } = await supabase
         .from('seasons')
         .select('id')
@@ -74,9 +75,13 @@ export default function Teams({ division }: TeamsProps) {
               .eq('team_id', team.id)
               .eq('is_active', true);
 
+            const captainFields = currentUser
+              ? 'first_name, last_name, phone, email'
+              : 'first_name, last_name';
+
             const { data: captainData } = await supabase
               .from('captains')
-              .select('first_name, last_name, phone, email')
+              .select(captainFields)
               .eq('team_id', team.id)
               .maybeSingle();
 
