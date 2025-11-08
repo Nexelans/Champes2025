@@ -27,6 +27,7 @@ export default function Teams({ division }: TeamsProps) {
   }, [division, user]);
 
   const loadTeams = async () => {
+    console.log('=== loadTeams called ===');
     setLoading(true);
     try {
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
@@ -67,9 +68,12 @@ export default function Teams({ division }: TeamsProps) {
         .eq('division', division)
         .in('club_id', participatingClubIds);
 
+      console.log('Teams data loaded:', teamsData?.length || 0);
+
       if (teamsData) {
         const teamsInfo: TeamInfo[] = await Promise.all(
           teamsData.map(async (team: any) => {
+            console.log('Processing team:', team.clubs?.name, 'ID:', team.id);
             const { count } = await supabase
               .from('team_players')
               .select('*', { count: 'exact', head: true })
