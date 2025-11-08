@@ -183,12 +183,11 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
-        {console.log('Current activeTab:', activeTab)}
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'calendar' && <CalendarView division={division} />}
         {activeTab === 'matches' && <MatchesView division={division} />}
         {activeTab === 'standings' && <Standings division={division} />}
-        {activeTab === 'teams' && (console.log('Rendering Teams component') || true) && <Teams division={division} />}
+        {activeTab === 'teams' && <Teams division={division} />}
         {activeTab === 'help' && <HelpPage />}
         {activeTab === 'profile' && <ProfileManagement />}
         {activeTab === 'players' && <PlayersManagement />}

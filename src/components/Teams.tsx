@@ -18,22 +18,19 @@ type TeamInfo = {
 };
 
 export default function Teams({ division }: TeamsProps) {
-  console.log('Teams component mounted, division:', division);
   const { user } = useAuth();
   const [teams, setTeams] = useState<TeamInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('useEffect triggered, calling loadTeams');
     loadTeams();
   }, [division, user]);
 
   const loadTeams = async () => {
-    console.log('=== loadTeams called ===');
     setLoading(true);
     try {
-      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-      console.log('Current user:', currentUser ? 'Authenticated' : 'Not authenticated');
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
       const { data: season } = await supabase
         .from('seasons')
         .select('id')
@@ -70,12 +67,9 @@ export default function Teams({ division }: TeamsProps) {
         .eq('division', division)
         .in('club_id', participatingClubIds);
 
-      console.log('Teams data loaded:', teamsData?.length || 0);
-
       if (teamsData) {
         const teamsInfo: TeamInfo[] = await Promise.all(
           teamsData.map(async (team: any) => {
-            console.log('Processing team:', team.clubs?.name, 'ID:', team.id);
             const { count } = await supabase
               .from('team_players')
               .select('*', { count: 'exact', head: true })
@@ -84,31 +78,19 @@ export default function Teams({ division }: TeamsProps) {
 
             let captainData: any = null;
 
-            console.log('Team:', team.clubs?.name, '- Is authenticated?', !!currentUser);
-
             if (currentUser) {
-              const { data, error } = await supabase
+              const { data } = await supabase
                 .from('captains')
                 .select('first_name, last_name, phone, email')
                 .eq('team_id', team.id)
                 .maybeSingle();
 
-              if (error) {
-                console.error('Error loading captain (authenticated):', error);
-              }
               captainData = data;
             } else {
-              console.log('Calling RPC for team:', team.id);
-              const { data, error } = await supabase
+              const { data } = await supabase
                 .rpc('get_public_captain_info', { p_team_id: team.id });
 
-              console.log('RPC response:', { data, error });
-              if (error) {
-                console.error('Error loading captain from RPC (public):', error);
-              }
-              console.log('Public captain data from RPC:', data);
               captainData = Array.isArray(data) && data.length > 0 ? data[0] : data;
-              console.log('Final captainData:', captainData);
             }
 
             return {
@@ -152,7 +134,7 @@ export default function Teams({ division }: TeamsProps) {
         {teams.length === 0 ? (
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">Aucune équipe enregistrée</p>
+            <p className="text-slate-500">Aucune équipe enregistrée pour cette division</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
