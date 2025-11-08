@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Users, Phone, Mail } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 type TeamsProps = {
   division: 'champe1' | 'champe2';
@@ -9,13 +10,15 @@ type TeamsProps = {
 type TeamInfo = {
   team_id: string;
   club_name: string;
-  captain_name: string;
+  captain_first_name: string;
+  captain_last_name: string;
   captain_phone: string;
   captain_email: string;
   players_count: number;
 };
 
 export default function Teams({ division }: TeamsProps) {
+  const { user } = useAuth();
   const [teams, setTeams] = useState<TeamInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,9 +83,8 @@ export default function Teams({ division }: TeamsProps) {
             return {
               team_id: team.id,
               club_name: team.clubs?.name || '',
-              captain_name: captainData
-                ? `${captainData.first_name} ${captainData.last_name}`
-                : 'Non défini',
+              captain_first_name: captainData?.first_name || '',
+              captain_last_name: captainData?.last_name || '',
               captain_phone: captainData?.phone || '',
               captain_email: captainData?.email || '',
               players_count: count || 0,
@@ -141,34 +143,42 @@ export default function Teams({ division }: TeamsProps) {
                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                       Capitaine
                     </h4>
-                    <p className="font-medium text-slate-900">{team.captain_name}</p>
+                    <p className="font-medium text-slate-900">
+                      {team.captain_first_name && team.captain_last_name
+                        ? user
+                          ? `${team.captain_first_name} ${team.captain_last_name}`
+                          : `${team.captain_first_name} ${team.captain_last_name.charAt(0)}.`
+                        : 'Non défini'}
+                    </p>
                   </div>
 
-                  <div className="space-y-2">
-                    {team.captain_phone && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Phone className="h-4 w-4 text-slate-400" />
-                        <a
-                          href={`tel:${team.captain_phone}`}
-                          className="hover:text-emerald-600 transition-colors"
-                        >
-                          {team.captain_phone}
-                        </a>
-                      </div>
-                    )}
+                  {user && (
+                    <div className="space-y-2">
+                      {team.captain_phone && (
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Phone className="h-4 w-4 text-slate-400" />
+                          <a
+                            href={`tel:${team.captain_phone}`}
+                            className="hover:text-emerald-600 transition-colors"
+                          >
+                            {team.captain_phone}
+                          </a>
+                        </div>
+                      )}
 
-                    {team.captain_email && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Mail className="h-4 w-4 text-slate-400" />
-                        <a
-                          href={`mailto:${team.captain_email}`}
-                          className="hover:text-emerald-600 transition-colors truncate"
-                        >
-                          {team.captain_email}
-                        </a>
-                      </div>
-                    )}
-                  </div>
+                      {team.captain_email && (
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Mail className="h-4 w-4 text-slate-400" />
+                          <a
+                            href={`mailto:${team.captain_email}`}
+                            className="hover:text-emerald-600 transition-colors truncate"
+                          >
+                            {team.captain_email}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
