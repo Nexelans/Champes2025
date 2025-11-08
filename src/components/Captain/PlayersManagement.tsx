@@ -155,9 +155,10 @@ export default function PlayersManagement() {
 
       resetForm();
       await loadPlayers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving player:', error);
-      setMessage({ type: 'error', text: 'Erreur lors de l\'enregistrement' });
+      const errorMessage = error?.message || 'Erreur lors de l\'enregistrement';
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }
