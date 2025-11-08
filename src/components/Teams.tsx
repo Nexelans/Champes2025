@@ -82,6 +82,8 @@ export default function Teams({ division }: TeamsProps) {
 
             let captainData: any = null;
 
+            console.log('Team:', team.clubs?.name, '- Is authenticated?', !!currentUser);
+
             if (currentUser) {
               const { data, error } = await supabase
                 .from('captains')
