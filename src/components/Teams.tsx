@@ -24,7 +24,7 @@ export default function Teams({ division }: TeamsProps) {
 
   useEffect(() => {
     loadTeams();
-  }, [division]);
+  }, [division, user]);
 
   const loadTeams = async () => {
     setLoading(true);
@@ -90,8 +90,8 @@ export default function Teams({ division }: TeamsProps) {
               club_name: team.clubs?.name || '',
               captain_first_name: captainData?.first_name || '',
               captain_last_name: captainData?.last_name || '',
-              captain_phone: captainData?.phone || '',
-              captain_email: captainData?.email || '',
+              captain_phone: currentUser && captainData ? (captainData as any).phone || '' : '',
+              captain_email: currentUser && captainData ? (captainData as any).email || '' : '',
               players_count: count || 0,
             };
           })
