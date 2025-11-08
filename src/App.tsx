@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList, Swords, Edit3, LogIn, BookOpen } from 'lucide-react';
+import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList, Swords, Edit3, LogIn, BookOpen, Building2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginForm from './components/Auth/LoginForm';
 import CreateAdmin from './components/Admin/CreateAdmin';
 import TeamManagement from './components/Admin/TeamManagement';
+import ClubManagement from './components/Admin/ClubManagement';
 import ConfigurationValidation from './components/Admin/ConfigurationValidation';
 import Dashboard from './components/Dashboard';
 import CalendarView from './components/CalendarView';
@@ -17,7 +18,7 @@ import MatchesView from './components/MatchesView';
 import ResultsEntry from './components/ResultsEntry';
 import HelpPage from './components/HelpPage';
 
-type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'matches' | 'setup' | 'profile' | 'players' | 'team-management' | 'validation' | 'selection' | 'results' | 'help';
+type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'matches' | 'setup' | 'profile' | 'players' | 'team-management' | 'clubs' | 'validation' | 'selection' | 'results' | 'help';
 
 function App() {
   const { user, captain, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -58,6 +59,7 @@ function App() {
 
   const adminTabs = [
     ...publicTabs,
+    { id: 'clubs' as Tab, label: 'Clubs', icon: Building2 },
     { id: 'team-management' as Tab, label: 'Capitaines', icon: Users },
     { id: 'setup' as Tab, label: 'Configuration', icon: Settings },
     { id: 'validation' as Tab, label: 'Validation', icon: Shield },
@@ -188,6 +190,7 @@ function App() {
         {activeTab === 'players' && <PlayersManagement />}
         {activeTab === 'selection' && captain && <TeamSelection captain={captain} />}
         {activeTab === 'results' && <ResultsEntry />}
+        {activeTab === 'clubs' && <ClubManagement />}
         {activeTab === 'team-management' && <TeamManagement />}
         {activeTab === 'validation' && <ConfigurationValidation />}
         {activeTab === 'setup' && <SeasonSetup division={division} />}
