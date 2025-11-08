@@ -40,8 +40,9 @@ export default function LoginForm({ onClose }: LoginFormProps) {
     setLoading(true);
 
     try {
+      const redirectUrl = import.meta.env.VITE_APP_URL || window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}`,
+        redirectTo: redirectUrl,
       });
 
       if (error) throw error;
