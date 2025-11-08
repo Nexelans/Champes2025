@@ -181,9 +181,23 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
         });
       }
 
+      await supabase
+        .from('teams')
+        .delete()
+        .eq('season_id', season.id)
+        .eq('division', division);
+
+      for (const club of clubs.filter(c => c.is_participating)) {
+        await supabase.from('teams').insert({
+          season_id: season.id,
+          club_id: club.club_id,
+          division: division,
+        });
+      }
+
       setMessage({
         type: 'success',
-        text: 'Configuration enregistrée avec succès',
+        text: 'Configuration enregistrée avec succès. Les équipes ont été créées.',
       });
     } catch (error) {
       console.error('Error saving configuration:', error);
