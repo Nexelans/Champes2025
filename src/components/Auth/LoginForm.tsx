@@ -40,12 +40,20 @@ export default function LoginForm({ onClose }: LoginFormProps) {
     setLoading(true);
 
     try {
-      const redirectUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: redirectUrl,
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-password`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: resetEmail }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de l\'envoi de l\'email');
+      }
 
       setResetSuccess(true);
     } catch (error: any) {
