@@ -84,6 +84,7 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
         `)
         .eq('season_id', seasonData.id)
         .eq('division', division)
+        .lte('round_number', 5)
         .order('round_number')
         .order('id');
 
@@ -251,7 +252,7 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
           .map((roundStr) => {
             const round = parseInt(roundStr);
             const roundMatches = groupedMatches[round];
-            const roundLabel = round === 6 ? 'Finale' : `Journée ${round}`;
+            const roundLabel = `Journée ${round}`;
 
             return (
               <div key={round} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">

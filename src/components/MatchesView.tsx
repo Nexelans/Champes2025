@@ -88,6 +88,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
         `)
         .eq('season_id', seasonData.id)
         .eq('division', division)
+        .lte('round_number', 5)
         .order('round_number')
         .order('match_date');
 
@@ -204,7 +205,6 @@ export default function MatchesView({ division }: MatchesViewProps) {
   const divisionLabel = division === 'champe1' ? 'Champe 1' : 'Champe 2';
   const roundMatches = matches.filter(m => m.round_number === selectedRound);
   const selectedMatchData = matches.find(m => m.id === selectedMatch);
-  const isFinals = selectedRound === 6;
 
   return (
     <div className="space-y-6">
@@ -237,20 +237,6 @@ export default function MatchesView({ division }: MatchesViewProps) {
                   Journée {round}
                 </button>
               ))}
-              <button
-                onClick={() => {
-                  setSelectedRound(6);
-                  setSelectedMatch(null);
-                }}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedRound === 6
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <Trophy className="h-4 w-4 inline mr-1" />
-                Finale
-              </button>
             </div>
           </div>
 
@@ -306,7 +292,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
                   {selectedMatchData.team1_club} vs {selectedMatchData.team2_club}
                 </h3>
                 <p className="text-emerald-100 text-sm mt-1">
-                  {isFinals ? 'Finale' : `Journée ${selectedRound}`} • {formatDate(selectedMatchData.match_date)} • {selectedMatchData.host_club}
+                  Journée {selectedRound} • {formatDate(selectedMatchData.match_date)} • {selectedMatchData.host_club}
                 </p>
               </div>
               <div className="text-right">

@@ -59,6 +59,7 @@ export default function CalendarView({ division }: CalendarViewProps) {
           host_club:clubs(name)
         `)
         .eq('season_id', seasonData.id)
+        .lte('round_number', 5)
         .order('round_number');
 
       if (matchesData) {
@@ -148,10 +149,6 @@ export default function CalendarView({ division }: CalendarViewProps) {
       matchups: d.matchups || []
     }));
 
-  const finals = {
-    champe1: champe1Dates.find(d => d.round_number === 6),
-    champe2: champe2Dates.find(d => d.round_number === 6),
-  };
 
   if (loading) {
     return (
@@ -171,11 +168,7 @@ export default function CalendarView({ division }: CalendarViewProps) {
   }
 
   const matches = division === 'champe1' ? champe1Matches : champe2Matches;
-  const finalDate = division === 'champe1' ? finals.champe1 : finals.champe2;
   const divisionLabel = division === 'champe1' ? 'Champe 1' : 'Champe 2';
-  const colorClasses = division === 'champe1'
-    ? { badge: 'text-blue-600 bg-blue-50', gradient: 'from-emerald-600 to-emerald-700', text: 'text-emerald-100' }
-    : { badge: 'text-sky-600 bg-sky-50', gradient: 'from-sky-600 to-sky-700', text: 'text-sky-100' };
 
   return (
     <div className="space-y-8">
@@ -217,23 +210,6 @@ export default function CalendarView({ division }: CalendarViewProps) {
               )}
             </div>
           ))}
-          {finalDate && (
-            <div className={`bg-gradient-to-r ${colorClasses.gradient} rounded-lg shadow-sm p-6 text-white`}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Finale {divisionLabel}</h3>
-                  <p className={`text-sm ${colorClasses.text}`}>{formatDate(finalDate.planned_date)}</p>
-                </div>
-                <div className="flex items-center space-x-2 bg-white/20 px-3 py-1 rounded-full">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-sm font-medium">{finalDate.host_club_name || 'À définir'}</span>
-                </div>
-              </div>
-              <p className={`mt-4 text-sm ${colorClasses.text}`}>
-                Finale en foursome à 10 joueurs par équipe
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>
