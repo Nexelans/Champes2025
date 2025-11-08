@@ -104,6 +104,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
         .eq('season_id', seasonData.id)
         .eq('division', captain.division)
         .or(`team1_id.eq.${captain.team_id},team2_id.eq.${captain.team_id}`)
+        .lte('round_number', 5)
         .order('match_date');
 
       if (error) throw error;
@@ -111,7 +112,6 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
       const matchesWithOpponent = data.map((match: any) => {
         const isTeam1 = match.team1_id === captain.team_id;
         const opponentClub = isTeam1 ? match.team2?.club : match.team1?.club;
-        const isFinal = match.round_number > 5;
 
         return {
           id: match.id,
@@ -124,7 +124,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
           status: match.status,
           opponent_name: opponentClub?.name || 'Inconnu',
           is_home: match.host_club_id === captain.club_id,
-          is_final: isFinal,
+          is_final: false,
         };
       });
 
@@ -355,7 +355,6 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
                   <Calendar className="w-4 h-4 text-slate-500" />
                   <span className="text-sm font-medium text-slate-700">
                     Journée {match.round_number}
-                    {match.is_final && ' - FINALE'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 mb-2">{formatDate(match.match_date)}</p>
