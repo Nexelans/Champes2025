@@ -125,6 +125,11 @@ export default function TeamManagement() {
     e.preventDefault();
     if (!formData.team_id) return;
 
+    if (!formData.phone || formData.phone.trim() === '') {
+      setMessage({ type: 'error', text: 'Le numéro de téléphone est obligatoire' });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 

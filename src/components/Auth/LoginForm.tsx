@@ -26,9 +26,12 @@ export default function LoginForm({ onClose }: LoginFormProps) {
 
     if (error) {
       setError(error.message || 'Email ou mot de passe incorrect');
+      setLoading(false);
+    } else {
+      if (onClose) {
+        onClose();
+      }
     }
-
-    setLoading(false);
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
