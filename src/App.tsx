@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList, Swords, Edit3, LogIn, BookOpen, Building2 } from 'lucide-react';
+import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList, Swords, Edit3, LogIn, BookOpen, Building2, Edit } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginForm from './components/Auth/LoginForm';
 import CreateAdmin from './components/Admin/CreateAdmin';
 import TeamManagement from './components/Admin/TeamManagement';
 import ClubManagement from './components/Admin/ClubManagement';
 import ConfigurationValidation from './components/Admin/ConfigurationValidation';
+import CalendarEditor from './components/Admin/CalendarEditor';
 import Dashboard from './components/Dashboard';
 import CalendarView from './components/CalendarView';
 import Teams from './components/Teams';
@@ -18,7 +19,7 @@ import MatchesView from './components/MatchesView';
 import ResultsEntry from './components/ResultsEntry';
 import HelpPage from './components/HelpPage';
 
-type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'matches' | 'setup' | 'profile' | 'players' | 'team-management' | 'clubs' | 'validation' | 'selection' | 'results' | 'help';
+type Tab = 'dashboard' | 'calendar' | 'teams' | 'standings' | 'matches' | 'setup' | 'profile' | 'players' | 'team-management' | 'clubs' | 'validation' | 'selection' | 'results' | 'help' | 'calendar-editor';
 
 function App() {
   const { user, captain, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -62,6 +63,7 @@ function App() {
     { id: 'clubs' as Tab, label: 'Clubs', icon: Building2 },
     { id: 'team-management' as Tab, label: 'Capitaines', icon: Users },
     { id: 'setup' as Tab, label: 'Configuration', icon: Settings },
+    { id: 'calendar-editor' as Tab, label: 'Modifier Calendrier', icon: Edit },
     { id: 'validation' as Tab, label: 'Validation', icon: Shield },
     { id: 'help' as Tab, label: 'Aide', icon: BookOpen },
   ];
@@ -103,7 +105,7 @@ function App() {
             </div>
 
             <div className="flex items-center gap-4">
-              {['calendar', 'matches', 'standings', 'teams', 'setup'].includes(activeTab) && (
+              {['calendar', 'matches', 'standings', 'teams', 'setup', 'calendar-editor'].includes(activeTab) && (
                 <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
                   <button
                     onClick={() => setDivision('champe1')}
@@ -193,6 +195,7 @@ function App() {
         {activeTab === 'results' && <ResultsEntry />}
         {activeTab === 'clubs' && <ClubManagement />}
         {activeTab === 'team-management' && <TeamManagement />}
+        {activeTab === 'calendar-editor' && <CalendarEditor division={division} />}
         {activeTab === 'validation' && <ConfigurationValidation />}
         {activeTab === 'setup' && <SeasonSetup division={division} />}
       </main>
