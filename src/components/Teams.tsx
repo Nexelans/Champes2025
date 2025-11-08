@@ -29,7 +29,8 @@ export default function Teams({ division }: TeamsProps) {
   const loadTeams = async () => {
     setLoading(true);
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      console.log('Current user:', currentUser ? 'Authenticated' : 'Not authenticated');
       const { data: season } = await supabase
         .from('seasons')
         .select('id')
@@ -90,16 +91,13 @@ export default function Teams({ division }: TeamsProps) {
               captainData = data;
             } else {
               const { data, error } = await supabase
-                .from('public_captains_view')
-                .select('first_name, last_name')
-                .eq('team_id', team.id)
-                .maybeSingle();
+                .rpc('get_public_captain_info', { p_team_id: team.id });
 
               if (error) {
-                console.error('Error loading captain from view (public):', error);
+                console.error('Error loading captain from RPC (public):', error);
               }
-              console.log('Public captain data:', data);
-              captainData = data;
+              console.log('Public captain data from RPC:', data);
+              captainData = data && data.length > 0 ? data[0] : null;
             }
 
             return {
