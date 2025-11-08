@@ -79,6 +79,7 @@ export default function ResultsEntry() {
         .eq('season_id', seasonData.id)
         .eq('division', captain!.division)
         .eq('host_club_id', captain!.club_id)
+        .lte('round_number', 5)
         .order('round_number')
         .order('match_date');
 
@@ -285,7 +286,7 @@ export default function ResultsEntry() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-slate-700">
-                      Journée {match.round_number} {match.round_number === 6 && '- FINALE'}
+                      Journée {match.round_number}
                     </p>
                     <p className="text-xs text-slate-600 mt-1">{formatDate(match.match_date)}</p>
                     <p className="font-semibold text-slate-900 mt-2">
