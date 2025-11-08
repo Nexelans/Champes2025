@@ -78,18 +78,27 @@ export default function Teams({ division }: TeamsProps) {
             let captainData: any = null;
 
             if (currentUser) {
-              const { data } = await supabase
+              const { data, error } = await supabase
                 .from('captains')
                 .select('first_name, last_name, phone, email')
                 .eq('team_id', team.id)
                 .maybeSingle();
+
+              if (error) {
+                console.error('Error loading captain (authenticated):', error);
+              }
               captainData = data;
             } else {
-              const { data } = await supabase
+              const { data, error } = await supabase
                 .from('public_captains_view')
                 .select('first_name, last_name')
                 .eq('team_id', team.id)
                 .maybeSingle();
+
+              if (error) {
+                console.error('Error loading captain from view (public):', error);
+              }
+              console.log('Public captain data:', data);
               captainData = data;
             }
 
