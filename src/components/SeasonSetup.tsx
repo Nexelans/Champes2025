@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, Calendar, Users, Check, AlertCircle } from 'lucide-react';
+import { Settings, Calendar, Users, Check, AlertCircle, Plus } from 'lucide-react';
 import { supabase, type Club, type Season, type SeasonClub, type SeasonDate } from '../lib/supabase';
 
 type SeasonSetupProps = {
@@ -34,6 +34,10 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showNewSeasonForm, setShowNewSeasonForm] = useState(false);
+  const [newSeasonName, setNewSeasonName] = useState('');
+  const [newSeasonStartDate, setNewSeasonStartDate] = useState('');
+  const [newSeasonEndDate, setNewSeasonEndDate] = useState('');
 
   useEffect(() => {
     loadSeasonConfiguration();
@@ -49,7 +53,6 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
         .maybeSingle();
 
       if (!seasonData) {
-        setMessage({ type: 'error', text: 'Aucune saison active trouvée' });
         setLoading(false);
         return;
       }
@@ -201,11 +204,162 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
     );
   }
 
+  const createNewSeason = async () => {
+    if (!newSeasonName || !newSeasonStartDate || !newSeasonEndDate) {
+      setMessage({ type: 'error', text: 'Tous les champs sont requis' });
+      return;
+    }
+
+    if (new Date(newSeasonEndDate) <= new Date(newSeasonStartDate)) {
+      setMessage({ type: 'error', text: 'La date de fin doit être après la date de début' });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      await supabase
+        .from('seasons')
+        .update({ is_active: false })
+        .eq('is_active', true);
+
+      const { data: newSeason, error } = await supabase
+        .from('seasons')
+        .insert({
+          name: newSeasonName,
+          start_date: newSeasonStartDate,
+          end_date: newSeasonEndDate,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setSeason(newSeason);
+      setShowNewSeasonForm(false);
+      setNewSeasonName('');
+      setNewSeasonStartDate('');
+      setNewSeasonEndDate('');
+      setMessage({ type: 'success', text: 'Saison créée avec succès' });
+      await loadSeasonConfiguration();
+    } catch (error) {
+      console.error('Error creating season:', error);
+      setMessage({ type: 'error', text: 'Erreur lors de la création de la saison' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!season) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-        <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-3" />
-        <p className="text-red-900 font-medium">Aucune saison active</p>
+      <div className="space-y-6">
+        <div className="bg-sky-50 border border-sky-200 rounded-lg p-6">
+          <AlertCircle className="h-12 w-12 text-sky-600 mx-auto mb-3" />
+          <p className="text-sky-900 font-medium text-center mb-4">Aucune saison active</p>
+
+          {!showNewSeasonForm ? (
+            <div className="text-center">
+              <button
+                onClick={() => setShowNewSeasonForm(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors"
+              >
+                <Plus className="h-5 w-5" />
+                Créer une nouvelle saison
+              </button>
+            </div>
+          ) : (
+            <div className="max-w-md mx-auto mt-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Nouvelle saison</h3>
+
+              {message && (
+                <div
+                  className={`p-4 rounded-lg mb-4 ${
+                    message.type === 'success'
+                      ? 'bg-emerald-50 border border-emerald-200 text-emerald-900'
+                      : 'bg-red-50 border border-red-200 text-red-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {message.type === 'success' ? (
+                      <Check className="h-5 w-5" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5" />
+                    )}
+                    <span className="font-medium">{message.text}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Nom de la saison
+                  </label>
+                  <input
+                    type="text"
+                    value={newSeasonName}
+                    onChange={(e) => setNewSeasonName(e.target.value)}
+                    placeholder="Ex: 2024-2025"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Date de début
+                  </label>
+                  <input
+                    type="date"
+                    value={newSeasonStartDate}
+                    onChange={(e) => setNewSeasonStartDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Date de fin
+                  </label>
+                  <input
+                    type="date"
+                    value={newSeasonEndDate}
+                    onChange={(e) => setNewSeasonEndDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowNewSeasonForm(false);
+                      setMessage(null);
+                    }}
+                    disabled={saving}
+                    className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 font-medium transition-colors disabled:opacity-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={createNewSeason}
+                    disabled={saving}
+                    className="flex-1 px-4 py-2 text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Création...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Créer
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
