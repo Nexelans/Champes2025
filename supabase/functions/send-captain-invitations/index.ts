@@ -346,30 +346,46 @@ L'équipe Champes ASG3V`;
           const n = await conn.read(buffer);
           if (n) {
             const response = decoder.decode(buffer.subarray(0, n));
-            console.log('SMTP:', response.trim());
+            console.log('SMTP Response:', response.trim());
             return response;
           }
           return '';
         };
 
-        const write = async (data: string) => {
-          console.log('SEND:', data.trim());
+        const write = async (data: string, hidePassword = false) => {
+          console.log('SMTP Send:', hidePassword ? '***PASSWORD***' : data.trim());
           await conn.write(encoder.encode(data + '\r\n'));
-          return await read();
+          const response = await read();
+          if (response.startsWith('5') || response.startsWith('4')) {
+            throw new Error(`SMTP Error: ${response}`);
+          }
+          return response;
         };
 
+        console.log('Connecting to SMTP server...');
         await read();
+        console.log('Sending EHLO...');
         await write('EHLO asg3v.fr');
+        console.log('Sending AUTH LOGIN...');
         await write('AUTH LOGIN');
+        console.log('Sending username...');
         await write(btoa('champes@asg3v.fr'));
-        await write(btoa('hTQrMiT!E&xbkG6B'));
+        console.log('Sending password...');
+        await write(btoa('hTQrMiT!E&xbkG6B'), true);
+        console.log('Sending MAIL FROM...');
         await write(`MAIL FROM:<champes@asg3v.fr>`);
+        console.log('Sending RCPT TO...');
         await write(`RCPT TO:<${captain.email}>`);
+        console.log('Sending DATA command...');
         await write('DATA');
+        console.log('Sending email body...');
         await conn.write(encoder.encode(emailBody + '\r\n.\r\n'));
-        await read();
+        const dataResponse = await read();
+        console.log('Email data sent, server response:', dataResponse);
+        console.log('Sending QUIT...');
         await write('QUIT');
         conn.close();
+        console.log('Connection closed successfully');
 
         console.log(`Email sent successfully to ${captain.email}`);
         sentEmails.push(`${teamName} (${division}) - ${captain.email} - Password: ${temporaryPassword} (Email envoyé)`);
