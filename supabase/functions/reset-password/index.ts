@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const generatePassword = () => {
-      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
+      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
       let password = '';
       for (let i = 0; i < 12; i++) {
         password += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -76,6 +76,7 @@ Deno.serve(async (req: Request) => {
     );
 
     if (resetError) {
+      console.error('Error resetting password:', resetError);
       return new Response(
         JSON.stringify({ error: "Erreur lors de la réinitialisation du mot de passe" }),
         {
