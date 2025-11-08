@@ -46,7 +46,6 @@ function App() {
     { id: 'matches' as Tab, label: 'Rencontres', icon: Swords },
     { id: 'standings' as Tab, label: 'Classement', icon: Award },
     { id: 'teams' as Tab, label: 'Équipes', icon: Users },
-    { id: 'help' as Tab, label: 'Aide', icon: BookOpen },
   ];
 
   const captainTabs = [
@@ -55,6 +54,7 @@ function App() {
     { id: 'players' as Tab, label: 'Mes Joueurs', icon: Users },
     { id: 'selection' as Tab, label: 'Sélection', icon: ClipboardList },
     { id: 'results' as Tab, label: 'Résultats', icon: Edit3 },
+    { id: 'help' as Tab, label: 'Aide', icon: BookOpen },
   ];
 
   const adminTabs = [
@@ -63,6 +63,7 @@ function App() {
     { id: 'team-management' as Tab, label: 'Capitaines', icon: Users },
     { id: 'setup' as Tab, label: 'Configuration', icon: Settings },
     { id: 'validation' as Tab, label: 'Validation', icon: Shield },
+    { id: 'help' as Tab, label: 'Aide', icon: BookOpen },
   ];
 
   const tabs = isAdmin ? adminTabs : (user ? captainTabs : publicTabs);
