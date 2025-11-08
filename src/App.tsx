@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Trophy, Calendar, Users, Award, Settings, CircleUser as UserCircle, LogOut, Shield, ClipboardList, Swords, Edit3, LogIn, BookOpen, Building2, Edit } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
+import { supabase } from './lib/supabase';
 import LoginForm from './components/Auth/LoginForm';
+import ResetPassword from './components/Auth/ResetPassword';
 import CreateAdmin from './components/Admin/CreateAdmin';
 import TeamManagement from './components/Admin/TeamManagement';
 import ClubManagement from './components/Admin/ClubManagement';
@@ -28,12 +30,21 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginType, setLoginType] = useState<'captain' | 'admin'>('captain');
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
       setTimeout(() => setLoading(false), 500);
     }
   }, [authLoading]);
+
+  useEffect(() => {
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (captain) {
@@ -84,6 +95,10 @@ function App() {
   const params = new URLSearchParams(window.location.search);
   if (params.get('setup') === 'admin') {
     return <CreateAdmin />;
+  }
+
+  if (isPasswordRecovery) {
+    return <ResetPassword />;
   }
 
   return (
