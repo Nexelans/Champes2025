@@ -257,11 +257,126 @@ Deno.serve(async (req: Request) => {
       }
 
       console.log(`Account created/updated for ${captain.email} with password: ${temporaryPassword}`);
-      sentEmails.push(`${teamName} (${division}) - ${captain.email} - Password: ${temporaryPassword}`);
 
-      // Email sending disabled for testing
-      // const resendApiKey = Deno.env.get("RESEND_API_KEY");
-      // if (resendApiKey) { ... }
+      try {
+        const emailHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #10b981; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+              .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+              .credentials { background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #10b981; }
+              .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; }
+              .button { background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Bienvenue sur la plateforme Champes</h1>
+              </div>
+              <div class="content">
+                <p>Bonjour ${captain.first_name} ${captain.last_name},</p>
+                <p>Vous êtes le capitaine de l'équipe <strong>${teamName}</strong> en <strong>${division === 'champe1' ? 'Championnat 1' : 'Championnat 2'}</strong>.</p>
+                <p>Voici vos identifiants de connexion pour accéder à la plateforme :</p>
+                <div class="credentials">
+                  <p><strong>Email :</strong> ${captain.email}</p>
+                  <p><strong>Mot de passe :</strong> ${temporaryPassword}</p>
+                </div>
+                <p>Vous pouvez vous connecter en utilisant ces identifiants sur la plateforme.</p>
+                <p><strong>Important :</strong> Nous vous recommandons de changer votre mot de passe après votre première connexion.</p>
+                <p>Si vous avez des questions, n'hésitez pas à nous contacter.</p>
+                <p>Cordialement,<br>L'équipe Champes ASG3V</p>
+              </div>
+              <div class="footer">
+                <p>Cet email a été envoyé automatiquement. Merci de ne pas y répondre.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+
+        const emailText = `
+Bonjour ${captain.first_name} ${captain.last_name},
+
+Vous êtes le capitaine de l'équipe ${teamName} en ${division === 'champe1' ? 'Championnat 1' : 'Championnat 2'}.
+
+Voici vos identifiants de connexion :
+Email : ${captain.email}
+Mot de passe : ${temporaryPassword}
+
+Important : Nous vous recommandons de changer votre mot de passe après votre première connexion.
+
+Cordialement,
+L'équipe Champes ASG3V
+        `;
+
+        const conn = await Deno.connect({
+          hostname: 'ssl0.ovh.net',
+          port: 587,
+        });
+
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+
+        const write = async (data: string) => {
+          await conn.write(encoder.encode(data + '\r\n'));
+        };
+
+        const read = async () => {
+          const buffer = new Uint8Array(1024);
+          const n = await conn.read(buffer);
+          return n ? decoder.decode(buffer.subarray(0, n)) : '';
+        };
+
+        await read();
+        await write('EHLO asg3v.fr');
+        await read();
+
+        await write('AUTH LOGIN');
+        await read();
+
+        await write(btoa('champes@asg3v.fr'));
+        await read();
+
+        await write(btoa('hTQrMiT!E&xbkG6B'));
+        await read();
+
+        await write(`MAIL FROM:<champes@asg3v.fr>`);
+        await read();
+
+        await write(`RCPT TO:<${captain.email}>`);
+        await read();
+
+        await write('DATA');
+        await read();
+
+        const emailData = [
+          `From: Champes ASG3V <champes@asg3v.fr>`,
+          `To: ${captain.email}`,
+          `Subject: Vos identifiants pour la plateforme Champes - ${teamName}`,
+          `MIME-Version: 1.0`,
+          `Content-Type: text/html; charset=UTF-8`,
+          '',
+          emailHtml,
+          '.',
+        ].join('\r\n');
+
+        await write(emailData);
+        await read();
+
+        await write('QUIT');
+        conn.close();
+
+        sentEmails.push(`${teamName} (${division}) - ${captain.email} - Password: ${temporaryPassword} (Email envoyé)`);
+      } catch (emailError) {
+        console.error(`Error sending email to ${captain.email}:`, emailError);
+        sentEmails.push(`${teamName} (${division}) - ${captain.email} - Password: ${temporaryPassword} (Erreur email)`);
+      }
     }
 
     return new Response(
