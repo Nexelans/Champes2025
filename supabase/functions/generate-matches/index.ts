@@ -13,13 +13,19 @@ interface Team {
 }
 
 function generateRoundRobinSchedule(teams: Team[]): Array<[Team, Team]>[] {
-  const n = teams.length;
+  let n = teams.length;
+  const teamsCopy = [...teams];
+
   if (n % 2 !== 0) {
-    throw new Error('Number of teams must be even');
+    teamsCopy.push({
+      id: 'BYE',
+      club_id: 'BYE',
+      club_name: 'BYE',
+    });
+    n++;
   }
 
   const rounds: Array<[Team, Team]>[] = [];
-  const teamsCopy = [...teams];
 
   for (let round = 0; round < n - 1; round++) {
     const matches: Array<[Team, Team]> = [];
@@ -27,7 +33,10 @@ function generateRoundRobinSchedule(teams: Team[]): Array<[Team, Team]>[] {
     for (let i = 0; i < n / 2; i++) {
       const team1 = teamsCopy[i];
       const team2 = teamsCopy[n - 1 - i];
-      matches.push([team1, team2]);
+
+      if (team1.id !== 'BYE' && team2.id !== 'BYE') {
+        matches.push([team1, team2]);
+      }
     }
 
     rounds.push(matches);
@@ -101,11 +110,6 @@ Deno.serve(async (req: Request) => {
         .eq('division', division);
 
       if (!teamsData || teamsData.length === 0) {
-        continue;
-      }
-
-      if (teamsData.length % 2 !== 0) {
-        console.log(`Skipping ${division}: odd number of teams`);
         continue;
       }
 
@@ -189,6 +193,31 @@ Deno.serve(async (req: Request) => {
             host_club_id: finalDate.host_club_id || teams[4].club_id,
             team1_id: teams[4].id,
             team2_id: teams[5].id,
+            status: 'scheduled',
+            team1_points: 0,
+            team2_points: 0,
+          });
+        } else if (teams.length === 5) {
+          matchesToInsert.push({
+            season_id: seasonData.id,
+            division: division,
+            round_number: 6,
+            match_date: finalDate.planned_date,
+            host_club_id: finalDate.host_club_id || teams[0].club_id,
+            team1_id: teams[0].id,
+            team2_id: teams[1].id,
+            status: 'scheduled',
+            team1_points: 0,
+            team2_points: 0,
+          });
+          matchesToInsert.push({
+            season_id: seasonData.id,
+            division: division,
+            round_number: 6,
+            match_date: finalDate.planned_date,
+            host_club_id: finalDate.host_club_id || teams[2].club_id,
+            team1_id: teams[2].id,
+            team2_id: teams[3].id,
             status: 'scheduled',
             team1_points: 0,
             team2_points: 0,
