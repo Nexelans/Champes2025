@@ -18,11 +18,13 @@ type TeamInfo = {
 };
 
 export default function Teams({ division }: TeamsProps) {
+  console.log('Teams component mounted, division:', division);
   const { user } = useAuth();
   const [teams, setTeams] = useState<TeamInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('useEffect triggered, calling loadTeams');
     loadTeams();
   }, [division, user]);
 
