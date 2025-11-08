@@ -75,15 +75,23 @@ export default function Teams({ division }: TeamsProps) {
               .eq('team_id', team.id)
               .eq('is_active', true);
 
-            const captainFields = currentUser
-              ? 'first_name, last_name, phone, email'
-              : 'first_name, last_name';
+            let captainData: any = null;
 
-            const { data: captainData } = await supabase
-              .from('captains')
-              .select(captainFields)
-              .eq('team_id', team.id)
-              .maybeSingle();
+            if (currentUser) {
+              const { data } = await supabase
+                .from('captains')
+                .select('first_name, last_name, phone, email')
+                .eq('team_id', team.id)
+                .maybeSingle();
+              captainData = data;
+            } else {
+              const { data } = await supabase
+                .from('public_captains_view')
+                .select('first_name, last_name')
+                .eq('team_id', team.id)
+                .maybeSingle();
+              captainData = data;
+            }
 
             return {
               team_id: team.id,
