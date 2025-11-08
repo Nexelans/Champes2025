@@ -96,14 +96,17 @@ export default function Teams({ division }: TeamsProps) {
               }
               captainData = data;
             } else {
+              console.log('Calling RPC for team:', team.id);
               const { data, error } = await supabase
                 .rpc('get_public_captain_info', { p_team_id: team.id });
 
+              console.log('RPC response:', { data, error });
               if (error) {
                 console.error('Error loading captain from RPC (public):', error);
               }
               console.log('Public captain data from RPC:', data);
-              captainData = data && data.length > 0 ? data[0] : null;
+              captainData = Array.isArray(data) && data.length > 0 ? data[0] : data;
+              console.log('Final captainData:', captainData);
             }
 
             return {
