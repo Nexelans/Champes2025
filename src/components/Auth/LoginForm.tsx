@@ -213,29 +213,31 @@ export default function LoginForm({ onClose }: LoginFormProps) {
             </button>
           </form>
 
-          {!onClose && (
-            <div className="mt-6 pt-6 border-t border-slate-200">
-              <div className="text-center">
-                <button
-                  onClick={() => setShowResetPassword(true)}
-                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
-                >
-                  Mot de passe oublié ?
-                </button>
-              </div>
-              <p className="text-sm text-slate-600 text-center mt-4">
-                Première connexion ? Contactez l'administrateur pour créer votre compte.
-              </p>
-              <div className="mt-4 text-center">
-                <a
-                  href="?setup=admin"
-                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  Configuration initiale
-                </a>
-              </div>
+          <div className="mt-6 pt-6 border-t border-slate-200">
+            <div className="text-center">
+              <button
+                onClick={() => setShowResetPassword(true)}
+                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
+              >
+                Mot de passe oublié ?
+              </button>
             </div>
-          )}
+            {!onClose && (
+              <>
+                <p className="text-sm text-slate-600 text-center mt-4">
+                  Première connexion ? Contactez l'administrateur pour créer votre compte.
+                </p>
+                <div className="mt-4 text-center">
+                  <a
+                    href="?setup=admin"
+                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    Configuration initiale
+                  </a>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
