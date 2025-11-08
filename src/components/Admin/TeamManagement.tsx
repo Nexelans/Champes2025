@@ -7,31 +7,37 @@ type Club = {
   name: string;
 };
 
+type Captain = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string;
+  team_id: string | null;
+  invitation_sent_at: string | null;
+  first_login_at: string | null;
+  last_login_at: string | null;
+  login_count: number;
+};
+
 type Team = {
   id: string;
   division: 'champe1' | 'champe2';
   club_id: string;
   club_name: string;
-  captain?: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    phone: string;
-    email: string;
-    invitation_sent_at: string | null;
-    first_login_at: string | null;
-    last_login_at: string | null;
-    login_count: number;
-  };
+  captain?: Captain;
 };
 
 export default function TeamManagement() {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [allCaptains, setAllCaptains] = useState<Captain[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCaptain, setEditingCaptain] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [assigningTeam, setAssigningTeam] = useState<string | null>(null);
+  const [selectedCaptainId, setSelectedCaptainId] = useState<string>('');
 
   const [formData, setFormData] = useState({
     team_id: '',
@@ -86,9 +92,11 @@ export default function TeamManagement() {
 
       const { data: captainsData } = await supabase
         .from('captains')
-        .select('*');
+        .select('*')
+        .order('last_name');
 
       setClubs(clubsData || []);
+      setAllCaptains(captainsData || []);
 
       const filteredTeams = (teamsData || []).filter((team: any) =>
         participatingTeams.some(
@@ -226,6 +234,56 @@ export default function TeamManagement() {
     } catch (error) {
       console.error('Error resending invitation:', error);
       setMessage({ type: 'error', text: 'Erreur lors de l\'envoi de l\'invitation' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAssignCaptain = async (teamId: string) => {
+    if (!selectedCaptainId) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const { error } = await supabase
+        .from('captains')
+        .update({ team_id: teamId })
+        .eq('id', selectedCaptainId);
+
+      if (error) throw error;
+
+      setMessage({ type: 'success', text: 'Capitaine affecté avec succès' });
+      setAssigningTeam(null);
+      setSelectedCaptainId('');
+      await loadData();
+    } catch (error) {
+      console.error('Error assigning captain:', error);
+      setMessage({ type: 'error', text: 'Erreur lors de l\'affectation' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnassignCaptain = async (captainId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir désaffecter ce capitaine de son équipe ?')) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const { error } = await supabase
+        .from('captains')
+        .update({ team_id: null })
+        .eq('id', captainId);
+
+      if (error) throw error;
+
+      setMessage({ type: 'success', text: 'Capitaine désaffecté avec succès' });
+      await loadData();
+    } catch (error) {
+      console.error('Error unassigning captain:', error);
+      setMessage({ type: 'error', text: 'Erreur lors de la désaffectation' });
     } finally {
       setLoading(false);
     }
@@ -430,8 +488,47 @@ export default function TeamManagement() {
                       <span className="font-medium text-slate-900">
                         {team.captain.first_name} {team.captain.last_name}
                       </span>
+                    ) : assigningTeam === team.id ? (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={selectedCaptainId}
+                          onChange={(e) => setSelectedCaptainId(e.target.value)}
+                          className="text-sm px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-emerald-500"
+                          autoFocus
+                        >
+                          <option value="">Sélectionner un capitaine</option>
+                          {allCaptains
+                            .filter((c) => !c.team_id)
+                            .map((captain) => (
+                              <option key={captain.id} value={captain.id}>
+                                {captain.first_name} {captain.last_name}
+                              </option>
+                            ))}
+                        </select>
+                        <button
+                          onClick={() => handleAssignCaptain(team.id)}
+                          disabled={!selectedCaptainId}
+                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAssigningTeam(null);
+                            setSelectedCaptainId('');
+                          }}
+                          className="p-1 text-slate-600 hover:bg-slate-100 rounded"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
                     ) : (
-                      <span className="text-sm text-slate-400 italic">Aucun capitaine</span>
+                      <button
+                        onClick={() => setAssigningTeam(team.id)}
+                        className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                      >
+                        + Affecter un capitaine
+                      </button>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -509,6 +606,13 @@ export default function TeamManagement() {
                             title="Modifier"
                           >
                             <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleUnassignCaptain(team.captain!.id)}
+                            className="p-1.5 text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                            title="Désaffecter"
+                          >
+                            <X className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(team.captain!.id)}
