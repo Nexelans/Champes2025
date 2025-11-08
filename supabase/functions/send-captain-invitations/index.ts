@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -311,27 +310,66 @@ Important : Nous vous recommandons de changer votre mot de passe après votre pr
 Cordialement,
 L'équipe Champes ASG3V`;
 
-        const client = new SMTPClient({
-          connection: {
-            hostname: 'ssl0.ovh.net',
-            port: 587,
-            tls: true,
-            auth: {
-              username: 'champes@asg3v.fr',
-              password: 'hTQrMiT!E&xbkG6B',
-            },
-          },
+        const boundary = `----=_Part${Date.now()}`;
+        const emailBody = [
+          `MIME-Version: 1.0`,
+          `From: Champes ASG3V <champes@asg3v.fr>`,
+          `To: ${captain.email}`,
+          `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(`Vos identifiants pour la plateforme Champes - ${teamName}`)))}?=`,
+          `Content-Type: multipart/alternative; boundary="${boundary}"`,
+          ``,
+          `--${boundary}`,
+          `Content-Type: text/plain; charset=UTF-8`,
+          `Content-Transfer-Encoding: quoted-printable`,
+          ``,
+          emailText,
+          ``,
+          `--${boundary}`,
+          `Content-Type: text/html; charset=UTF-8`,
+          `Content-Transfer-Encoding: quoted-printable`,
+          ``,
+          emailHtml,
+          ``,
+          `--${boundary}--`,
+        ].join('\r\n');
+
+        const conn = await Deno.connectTls({
+          hostname: 'ssl0.ovh.net',
+          port: 465,
         });
 
-        await client.send({
-          from: 'champes@asg3v.fr',
-          to: captain.email,
-          subject: `Vos identifiants pour la plateforme Champes - ${teamName}`,
-          content: emailText,
-          html: emailHtml,
-        });
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
 
-        await client.close();
+        const read = async () => {
+          const buffer = new Uint8Array(4096);
+          const n = await conn.read(buffer);
+          if (n) {
+            const response = decoder.decode(buffer.subarray(0, n));
+            console.log('SMTP:', response.trim());
+            return response;
+          }
+          return '';
+        };
+
+        const write = async (data: string) => {
+          console.log('SEND:', data.trim());
+          await conn.write(encoder.encode(data + '\r\n'));
+          return await read();
+        };
+
+        await read();
+        await write('EHLO asg3v.fr');
+        await write('AUTH LOGIN');
+        await write(btoa('champes@asg3v.fr'));
+        await write(btoa('hTQrMiT!E&xbkG6B'));
+        await write(`MAIL FROM:<champes@asg3v.fr>`);
+        await write(`RCPT TO:<${captain.email}>`);
+        await write('DATA');
+        await conn.write(encoder.encode(emailBody + '\r\n.\r\n'));
+        await read();
+        await write('QUIT');
+        conn.close();
 
         console.log(`Email sent successfully to ${captain.email}`);
         sentEmails.push(`${teamName} (${division}) - ${captain.email} - Password: ${temporaryPassword} (Email envoyé)`);
