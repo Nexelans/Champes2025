@@ -146,7 +146,7 @@ export default function PlayersManagement() {
           handicap_index: index,
           gender: formData.gender,
           is_junior: formData.is_junior,
-          is_validated: false,
+          is_validated: true,
         });
 
         if (error) throw error;
