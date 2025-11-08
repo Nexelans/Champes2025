@@ -197,7 +197,38 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
 
       setMessage({
         type: 'success',
-        text: 'Configuration enregistrée avec succès. Les équipes ont été créées.',
+        text: 'Génération du calendrier des matchs...',
+      });
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        const generateMatchesUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-matches`;
+        const generateResponse = await fetch(generateMatchesUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sessionData.session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            season_id: season.id,
+            division: division,
+          }),
+        });
+
+        if (!generateResponse.ok) {
+          const errorText = await generateResponse.text();
+          console.error('Error generating matches:', errorText);
+          setMessage({
+            type: 'error',
+            text: 'Configuration enregistrée mais erreur lors de la génération du calendrier',
+          });
+          return;
+        }
+      }
+
+      setMessage({
+        type: 'success',
+        text: 'Configuration enregistrée avec succès. Le calendrier a été généré.',
       });
     } catch (error) {
       console.error('Error saving configuration:', error);
