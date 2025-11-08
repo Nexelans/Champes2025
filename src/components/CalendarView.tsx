@@ -169,6 +169,9 @@ export default function CalendarView({ division }: CalendarViewProps) {
 
   const matches = division === 'champe1' ? champe1Matches : champe2Matches;
   const divisionLabel = division === 'champe1' ? 'Champe 1' : 'Champe 2';
+  const colorClasses = division === 'champe1'
+    ? { badge: 'text-blue-600 bg-blue-50' }
+    : { badge: 'text-sky-600 bg-sky-50' };
 
   return (
     <div className="space-y-8">
