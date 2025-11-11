@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, CreditCard as Edit2, Trash2, Check, X, AlertCircle, CheckCircle, Mail, Clock, UserCheck } from 'lucide-react';
+import { Users, Plus, CreditCard as Edit2, Trash2, Check, X, AlertCircle, CheckCircle, Mail, Clock, UserCheck, Key } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 type Club = {
@@ -38,6 +38,8 @@ export default function TeamManagement() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [assigningTeam, setAssigningTeam] = useState<string | null>(null);
   const [selectedCaptainId, setSelectedCaptainId] = useState<string>('');
+  const [changingPassword, setChangingPassword] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState<string>('');
 
   const [formData, setFormData] = useState({
     team_id: '',
@@ -278,6 +280,69 @@ export default function TeamManagement() {
     } catch (error) {
       console.error('Error assigning captain:', error);
       setMessage({ type: 'error', text: 'Erreur lors de l\'affectation' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (captain: Captain) => {
+    const password = prompt(`Entrer le nouveau mot de passe pour ${captain.first_name} ${captain.last_name}:`);
+    if (!password) return;
+
+    if (password.length < 4) {
+      setMessage({ type: 'error', text: 'Le mot de passe doit contenir au moins 4 caractères' });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        setMessage({ type: 'error', text: 'Session expirée' });
+        return;
+      }
+
+      const { data: captainData } = await supabase
+        .from('captains')
+        .select('user_id')
+        .eq('id', captain.id)
+        .single();
+
+      if (!captainData?.user_id) {
+        setMessage({ type: 'error', text: 'Utilisateur non trouvé' });
+        return;
+      }
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/set-simple-password`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionData.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: captainData.user_id,
+          password: password
+        }),
+      });
+
+      if (response.ok) {
+        setMessage({
+          type: 'success',
+          text: `Mot de passe changé pour ${captain.first_name} ${captain.last_name}`
+        });
+      } else {
+        const errorData = await response.json();
+        setMessage({
+          type: 'error',
+          text: errorData.error || 'Erreur lors du changement de mot de passe'
+        });
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setMessage({ type: 'error', text: 'Erreur lors du changement de mot de passe' });
     } finally {
       setLoading(false);
     }
@@ -615,6 +680,13 @@ export default function TeamManagement() {
                             title="Générer et envoyer identifiants"
                           >
                             <Mail className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleChangePassword(team.captain!)}
+                            className="p-1.5 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
+                            title="Changer le mot de passe"
+                          >
+                            <Key className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleEdit(team)}
