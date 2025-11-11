@@ -156,21 +156,23 @@ const captainSections: Section[] = [
     id: 'selection',
     title: '🎯 Sélection de l\'équipe',
     content: [
-      'Onglet "Sélection" : liste des prochains matchs',
-      'Cliquez sur "Sélectionner l\'équipe"',
+      'Onglet "Calendrier" : trouvez votre prochain match',
+      'Cliquez sur "Sélectionner" à côté du match',
       'Choisissez 4 joueurs et définissez leur ordre (1 à 4)',
-      'Validez avant la date limite',
+      'Cliquez sur "Valider la sélection"',
       '⚠️ L\'ordre compte : joueur 1 affronte joueur 1 adverse, etc.',
+      'Vous pouvez modifier la sélection tant que le match n\'est pas verrouillé',
     ]
   },
   {
     id: 'results',
     title: '📊 Saisie des résultats',
     content: [
-      'Après chaque match, allez dans "Résultats"',
-      'Sélectionnez le match concerné',
+      'Après chaque match, allez dans "Calendrier"',
+      'Trouvez le match terminé et cliquez sur "Saisir résultats"',
       'Entrez le score de chaque rencontre individuelle (4 matchs)',
       'Format : Nombre de manches gagnées (ex: 3-1)',
+      'Cliquez sur "Enregistrer les résultats"',
       'Le système calcule automatiquement les points',
       'Règles : Victoire (3-4 manches) = 2 pts, Nul (2-2) = 1 pt, Défaite (0-1) = 0 pt',
     ]
