@@ -137,6 +137,14 @@ export default function TeamManagement() {
 
     try {
       if (editingCaptain) {
+        const { data: oldCaptainData } = await supabase
+          .from('captains')
+          .select('email, user_id')
+          .eq('id', editingCaptain)
+          .single();
+
+        const emailChanged = oldCaptainData && oldCaptainData.email !== formData.email;
+
         const { error } = await supabase
           .from('captains')
           .update({
@@ -148,6 +156,29 @@ export default function TeamManagement() {
           .eq('id', editingCaptain);
 
         if (error) throw error;
+
+        if (emailChanged && oldCaptainData?.user_id) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData.session) {
+            const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-captain-email`;
+            const response = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${sessionData.session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                user_id: oldCaptainData.user_id,
+                new_email: formData.email
+              }),
+            });
+
+            if (!response.ok) {
+              console.error('Failed to update auth email');
+            }
+          }
+        }
+
         setMessage({ type: 'success', text: 'Capitaine mis à jour avec succès' });
       } else {
         const { error } = await supabase.from('captains').insert({
