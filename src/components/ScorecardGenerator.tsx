@@ -143,39 +143,38 @@ export default function ScorecardGenerator({
   <title>Feuille de Score - ${team1} vs ${team2}</title>
   <style>
     @media print {
-      @page { size: landscape; margin: 8mm; }
+      @page { size: portrait; margin: 8mm; }
       body { margin: 0; }
     }
     body {
       font-family: Arial, sans-serif;
-      font-size: 8px;
-      line-height: 1.1;
+      font-size: 10px;
+      line-height: 1.2;
       margin: 10px;
     }
     .header {
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
       border-bottom: 2px solid #000;
-      padding-bottom: 5px;
+      padding-bottom: 8px;
     }
-    .header h1 { margin: 0 0 3px 0; font-size: 16px; }
-    .header h2 { margin: 0; font-size: 12px; font-weight: normal; }
+    .header h1 { margin: 0 0 5px 0; font-size: 18px; }
+    .header h2 { margin: 0; font-size: 14px; font-weight: normal; }
     .match-info {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 9px;
+      text-align: center;
+      margin-bottom: 12px;
+      font-size: 11px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 3px;
+      margin-bottom: 8px;
     }
     th, td {
       border: 1px solid #333;
-      padding: 2px 1px;
+      padding: 4px 2px;
       text-align: center;
-      font-size: 7px;
+      font-size: 9px;
     }
     th {
       background-color: #e0e0e0;
@@ -183,26 +182,23 @@ export default function ScorecardGenerator({
     }
     .player-row {
       text-align: left;
-      padding-left: 3px;
+      padding-left: 5px;
       font-weight: bold;
-      font-size: 7px;
+      font-size: 9px;
     }
     .stroke-row {
       background-color: #ffffcc;
       font-weight: bold;
-      font-size: 8px;
+      font-size: 10px;
     }
     .match-separator {
-      height: 8px;
+      height: 12px;
       background-color: #f5f5f5;
     }
     .footer {
-      position: fixed;
-      bottom: 5mm;
-      left: 0;
-      right: 0;
+      margin-top: 20px;
       text-align: center;
-      font-size: 8px;
+      font-size: 9px;
       color: #666;
     }
     .footer a {
@@ -225,23 +221,6 @@ export default function ScorecardGenerator({
   </div>
 
   <table>
-    <thead>
-      <tr>
-        <th style="width: 120px;">Joueur</th>
-        ${Array.from({ length: 18 }, (_, i) => `<th>${i + 1}</th>`).join('')}
-        <th>Total</th>
-      </tr>
-      <tr>
-        <th>PAR</th>
-        ${pars.map(p => `<th>${p}</th>`).join('')}
-        <th>${pars.reduce((a, b) => a + b, 0)}</th>
-      </tr>
-      <tr>
-        <th>SI</th>
-        ${strokeIndexes.map(si => `<th>${si}</th>`).join('')}
-        <th></th>
-      </tr>
-    </thead>
     <tbody>
       ${matches.map((match, idx) => {
         const player1 = playersMap.get(match.team1_player_id);
@@ -249,28 +228,26 @@ export default function ScorecardGenerator({
 
         if (!player1 || !player2) return '';
 
-        const strokeHolesTeam1 = match.strokes_receiver === 1
+        const strokeHoles = match.strokes_receiver === 1
           ? calculateStrokeHoles(strokeIndexes, match.strokes_given)
-          : [];
-        const strokeHolesTeam2 = match.strokes_receiver === 2
+          : match.strokes_receiver === 2
           ? calculateStrokeHoles(strokeIndexes, match.strokes_given)
           : [];
 
         return `
-      ${idx > 0 ? '<tr class="match-separator"><td colspan="21"></td></tr>' : ''}
+      ${idx > 0 ? '<tr class="match-separator"><td colspan="20"></td></tr>' : ''}
       <tr>
-        <td class="player-row">${match.match_order}. ${player1.first_name} ${player1.last_name} (${team1.substring(0, 15)}) - Index ${player1.handicap_index}</td>
+        <td class="player-row" style="width: 150px;">${match.match_order}. ${player1.first_name} ${player1.last_name} (${team1.substring(0, 15)}) - Index ${player1.handicap_index}</td>
         ${Array.from({ length: 18 }, (_, i) => `<td></td>`).join('')}
         <td></td>
       </tr>
       <tr>
         <td class="stroke-row">Coups rendus</td>
         ${Array.from({ length: 18 }, (_, i) => {
-          const hasStroke1 = strokeHolesTeam1.includes(i + 1);
-          const hasStroke2 = strokeHolesTeam2.includes(i + 1);
-          return `<td class="stroke-row">${hasStroke1 ? '1' : hasStroke2 ? '2' : '0'}</td>`;
+          const hasStroke = strokeHoles.includes(i + 1);
+          return `<td class="stroke-row">${hasStroke ? '1' : ''}</td>`;
         }).join('')}
-        <td class="stroke-row">${match.strokes_given > 0 ? match.strokes_receiver : ''}</td>
+        <td class="stroke-row">${match.strokes_given}</td>
       </tr>
       <tr>
         <td class="player-row">${match.match_order}. ${player2.first_name} ${player2.last_name} (${team2.substring(0, 15)}) - Index ${player2.handicap_index}</td>
@@ -282,8 +259,8 @@ export default function ScorecardGenerator({
     </tbody>
   </table>
 
-  <div style="margin-top: 10px; font-size: 8px; color: #666;">
-    <p><strong>Instructions :</strong> La ligne centrale indique les coups rendus : 1 = coup pour joueur 1, 2 = coup pour joueur 2, 0 = pas de coup</p>
+  <div style="margin-top: 15px; font-size: 9px; color: #666;">
+    <p><strong>Instructions :</strong> La ligne centrale indique où le joueur avec le plus petit index reçoit un coup (1 = coup rendu)</p>
   </div>
 
   <div class="footer">
