@@ -162,14 +162,14 @@ function App() {
             </div>
           </div>
 
-          <nav className="mt-6 flex gap-1" role="tablist">
+          <nav className="mt-6 flex gap-1 overflow-x-auto pb-2" role="tablist">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'bg-emerald-50 text-emerald-700 shadow-sm'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
