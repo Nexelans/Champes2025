@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
     const isFinals = matchData.round_number === 6;
     const requiredPlayers = isFinals ? 10 : 8;
 
-    const { data: team1Selections, error: team1Error } = await supabase
+    const { data: team1SelectionsRaw, error: team1Error } = await supabase
       .from('match_player_selections')
       .select(`
         player_id,
@@ -63,10 +63,9 @@ Deno.serve(async (req: Request) => {
         players!inner(handicap_index)
       `)
       .eq('match_id', matchId)
-      .eq('team_id', matchData.team1_id)
-      .order('selection_order');
+      .eq('team_id', matchData.team1_id);
 
-    const { data: team2Selections, error: team2Error } = await supabase
+    const { data: team2SelectionsRaw, error: team2Error } = await supabase
       .from('match_player_selections')
       .select(`
         player_id,
@@ -74,20 +73,31 @@ Deno.serve(async (req: Request) => {
         players!inner(handicap_index)
       `)
       .eq('match_id', matchId)
-      .eq('team_id', matchData.team2_id)
-      .order('selection_order');
+      .eq('team_id', matchData.team2_id);
 
     if (team1Error || team2Error) {
       throw new Error('Error fetching player selections');
     }
 
-    if (!team1Selections || team1Selections.length !== requiredPlayers) {
+    if (!team1SelectionsRaw || team1SelectionsRaw.length !== requiredPlayers) {
       throw new Error(`Team 1 must select exactly ${requiredPlayers} players`);
     }
 
-    if (!team2Selections || team2Selections.length !== requiredPlayers) {
+    if (!team2SelectionsRaw || team2SelectionsRaw.length !== requiredPlayers) {
       throw new Error(`Team 2 must select exactly ${requiredPlayers} players`);
     }
+
+    const team1Selections = team1SelectionsRaw.sort((a, b) => {
+      const handicapA = (a.players as any).handicap_index;
+      const handicapB = (b.players as any).handicap_index;
+      return handicapA - handicapB;
+    });
+
+    const team2Selections = team2SelectionsRaw.sort((a, b) => {
+      const handicapA = (a.players as any).handicap_index;
+      const handicapB = (b.players as any).handicap_index;
+      return handicapA - handicapB;
+    });
 
     await supabase
       .from('individual_matches')
