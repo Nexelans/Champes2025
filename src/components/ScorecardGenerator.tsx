@@ -237,7 +237,12 @@ export default function ScorecardGenerator({
         return `
       ${idx > 0 ? '<tr class="match-separator"><td colspan="20"></td></tr>' : ''}
       <tr>
-        <td class="player-row" style="width: 150px;">${match.match_order}. ${player1.first_name} ${player1.last_name} (${team1.substring(0, 15)}) - Index ${player1.handicap_index}</td>
+        <th style="width: 150px;">Trou</th>
+        ${Array.from({ length: 18 }, (_, i) => `<th>${i + 1}</th>`).join('')}
+        <th>Total</th>
+      </tr>
+      <tr>
+        <td class="player-row">${match.match_order}. ${player1.first_name} ${player1.last_name} (${team1.substring(0, 15)}) - Index ${player1.handicap_index}</td>
         ${Array.from({ length: 18 }, (_, i) => `<td></td>`).join('')}
         <td></td>
       </tr>
