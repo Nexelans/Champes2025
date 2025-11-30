@@ -6,6 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
 
+interface PlayerSelection {
+  player_id: string;
+  selection_order: number;
+  handicap_index: number;
+}
+
+function calculateStrokesGiven(handicap1: number, handicap2: number): { strokes: number, receiver: 1 | 2 } {
+  const diff = Math.abs(handicap1 - handicap2);
+  const strokes = Math.round(diff * 0.9);
+  const receiver = handicap1 > handicap2 ? 1 : 2;
+  return { strokes, receiver };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -39,28 +52,104 @@ Deno.serve(async (req: Request) => {
       throw new Error('Match not found');
     }
 
+    const isFinals = matchData.round_number === 6;
+    const requiredPlayers = isFinals ? 10 : 8;
+
+    const { data: team1Selections, error: team1Error } = await supabase
+      .from('match_player_selections')
+      .select(`
+        player_id,
+        selection_order,
+        players!inner(handicap_index)
+      `)
+      .eq('match_id', matchId)
+      .eq('team_id', matchData.team1_id)
+      .order('selection_order');
+
+    const { data: team2Selections, error: team2Error } = await supabase
+      .from('match_player_selections')
+      .select(`
+        player_id,
+        selection_order,
+        players!inner(handicap_index)
+      `)
+      .eq('match_id', matchId)
+      .eq('team_id', matchData.team2_id)
+      .order('selection_order');
+
+    if (team1Error || team2Error) {
+      throw new Error('Error fetching player selections');
+    }
+
+    if (!team1Selections || team1Selections.length !== requiredPlayers) {
+      throw new Error(`Team 1 must select exactly ${requiredPlayers} players`);
+    }
+
+    if (!team2Selections || team2Selections.length !== requiredPlayers) {
+      throw new Error(`Team 2 must select exactly ${requiredPlayers} players`);
+    }
+
     await supabase
       .from('individual_matches')
       .delete()
       .eq('match_id', matchId);
 
-    const isFinals = matchData.round_number === 6;
-    const numMatches = isFinals ? 5 : 8;
-
     const individualMatchesToInsert = [];
-    for (let i = 1; i <= numMatches; i++) {
-      individualMatchesToInsert.push({
-        match_id: matchId,
-        match_order: i,
-        team1_player_id: '00000000-0000-0000-0000-000000000000',
-        team2_player_id: '00000000-0000-0000-0000-000000000000',
-        team1_player2_id: isFinals ? '00000000-0000-0000-0000-000000000000' : null,
-        team2_player2_id: isFinals ? '00000000-0000-0000-0000-000000000000' : null,
-        result: null,
-        team1_points: 0,
-        team2_points: 0,
-        score_detail: null,
-      });
+
+    if (isFinals) {
+      for (let i = 0; i < 5; i++) {
+        const team1Player1 = team1Selections[i * 2];
+        const team1Player2 = team1Selections[i * 2 + 1];
+        const team2Player1 = team2Selections[i * 2];
+        const team2Player2 = team2Selections[i * 2 + 1];
+
+        const team1AvgHandicap = ((team1Player1.players as any).handicap_index + (team1Player2.players as any).handicap_index) / 2;
+        const team2AvgHandicap = ((team2Player1.players as any).handicap_index + (team2Player2.players as any).handicap_index) / 2;
+
+        const strokeInfo = calculateStrokesGiven(team1AvgHandicap, team2AvgHandicap);
+        const scoreDetail = strokeInfo.strokes > 0
+          ? `${strokeInfo.strokes} coup${strokeInfo.strokes > 1 ? 's' : ''} rendu${strokeInfo.strokes > 1 ? 's' : ''} à l'équipe ${strokeInfo.receiver}`
+          : 'Égalité de handicap';
+
+        individualMatchesToInsert.push({
+          match_id: matchId,
+          match_order: i + 1,
+          team1_player_id: team1Player1.player_id,
+          team1_player2_id: team1Player2.player_id,
+          team2_player_id: team2Player1.player_id,
+          team2_player2_id: team2Player2.player_id,
+          result: null,
+          team1_points: 0,
+          team2_points: 0,
+          score_detail: scoreDetail,
+        });
+      }
+    } else {
+      for (let i = 0; i < 8; i++) {
+        const team1Player = team1Selections[i];
+        const team2Player = team2Selections[i];
+
+        const team1Handicap = (team1Player.players as any).handicap_index;
+        const team2Handicap = (team2Player.players as any).handicap_index;
+
+        const strokeInfo = calculateStrokesGiven(team1Handicap, team2Handicap);
+        const scoreDetail = strokeInfo.strokes > 0
+          ? `${strokeInfo.strokes > 1 ? 's' : ''} rendu${strokeInfo.strokes > 1 ? 's' : ''} au joueur ${strokeInfo.receiver}`
+          : 'Égalité de handicap';
+
+        individualMatchesToInsert.push({
+          match_id: matchId,
+          match_order: i + 1,
+          team1_player_id: team1Player.player_id,
+          team2_player_id: team2Player.player_id,
+          team1_player2_id: null,
+          team2_player2_id: null,
+          result: null,
+          team1_points: 0,
+          team2_points: 0,
+          score_detail: scoreDetail,
+        });
+      }
     }
 
     const { error: insertError } = await supabase

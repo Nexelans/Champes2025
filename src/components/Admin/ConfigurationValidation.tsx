@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, CheckCircle, AlertTriangle, Lock, Unlock, AlertCircle, Users, Calendar } from 'lucide-react';
+import { Shield, CheckCircle, AlertTriangle, Lock, Unlock, AlertCircle, Users, Calendar, Zap } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -19,6 +19,20 @@ type TeamSelectionStatus = {
   players_selected: number;
   is_locked: boolean;
   is_final: boolean;
+  match_id?: string;
+};
+
+type ReadyMatch = {
+  match_id: string;
+  division: 'champe1' | 'champe2';
+  round_number: number;
+  match_date: string;
+  team1_name: string;
+  team2_name: string;
+  team1_selections: number;
+  team2_selections: number;
+  is_final: boolean;
+  has_individual_matches: boolean;
 };
 
 export default function ConfigurationValidation() {
@@ -26,8 +40,10 @@ export default function ConfigurationValidation() {
   const [season, setSeason] = useState<any>(null);
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [teamStatuses, setTeamStatuses] = useState<TeamSelectionStatus[]>([]);
+  const [readyMatches, setReadyMatches] = useState<ReadyMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [generatingMatch, setGeneratingMatch] = useState<string | null>(null);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [unlockCode, setUnlockCode] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -169,17 +185,126 @@ export default function ConfigurationValidation() {
             players_selected: playersSelected,
             is_locked: false,
             is_final: isFinal,
+            match_id: nextMatch?.id,
           };
         });
 
         const statuses = await Promise.all(statusPromises);
         setTeamStatuses(statuses);
+
+        const { data: matchesData } = await supabase
+          .from('matches')
+          .select(`
+            id,
+            round_number,
+            match_date,
+            team1:teams!matches_team1_id_fkey(id, division, clubs(name)),
+            team2:teams!matches_team2_id_fkey(id, division, clubs(name))
+          `)
+          .eq('season_id', seasonData.id)
+          .gte('match_date', new Date().toISOString().split('T')[0])
+          .order('match_date');
+
+        if (matchesData) {
+          const readyMatchesPromises = matchesData.map(async (match: any) => {
+            const requiredPlayers = match.round_number === 6 ? 10 : 8;
+
+            const { data: team1Selections } = await supabase
+              .from('match_player_selections')
+              .select('id')
+              .eq('match_id', match.id)
+              .eq('team_id', match.team1.id);
+
+            const { data: team2Selections } = await supabase
+              .from('match_player_selections')
+              .select('id')
+              .eq('match_id', match.id)
+              .eq('team_id', match.team2.id);
+
+            const { data: individualMatches } = await supabase
+              .from('individual_matches')
+              .select('id')
+              .eq('match_id', match.id)
+              .limit(1);
+
+            const team1Count = team1Selections?.length || 0;
+            const team2Count = team2Selections?.length || 0;
+
+            if (team1Count === requiredPlayers && team2Count === requiredPlayers) {
+              return {
+                match_id: match.id,
+                division: match.team1.division,
+                round_number: match.round_number,
+                match_date: match.match_date,
+                team1_name: match.team1.clubs.name,
+                team2_name: match.team2.clubs.name,
+                team1_selections: team1Count,
+                team2_selections: team2Count,
+                is_final: match.round_number === 6,
+                has_individual_matches: (individualMatches?.length || 0) > 0,
+              };
+            }
+            return null;
+          });
+
+          const readyMatchesResults = await Promise.all(readyMatchesPromises);
+          setReadyMatches(readyMatchesResults.filter((m): m is ReadyMatch => m !== null));
+        }
       }
     } catch (error) {
       console.error('Error loading validation status:', error);
       setIssues([{ type: 'error', message: 'Erreur lors de la vérification' }]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateIndividualMatches = async (matchId: string) => {
+    if (!confirm('Voulez-vous générer les rencontres individuelles pour ce match ? Les joueurs seront appariés automatiquement selon leur handicap.')) {
+      return;
+    }
+
+    setGeneratingMatch(matchId);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error('No session found');
+      }
+
+      const generateUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-individual-matches`;
+      const response = await fetch(generateUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionData.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ matchId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate individual matches');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate individual matches');
+      }
+
+      setMessage({
+        type: 'success',
+        text: `${result.matchupsGenerated} rencontres individuelles générées avec succès !`,
+      });
+
+      await loadValidationStatus();
+    } catch (error) {
+      console.error('Error generating individual matches:', error);
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Erreur lors de la génération des rencontres',
+      });
+    } finally {
+      setGeneratingMatch(null);
     }
   };
 
@@ -524,6 +649,83 @@ export default function ConfigurationValidation() {
           )}
         </div>
       </div>
+
+      {season?.is_configuration_validated && readyMatches.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Zap className="h-6 w-6 text-blue-600" />
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Génération des Rencontres</h2>
+              <p className="text-sm text-slate-600">Matchs prêts pour la génération des parties individuelles</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {['champe1', 'champe2'].map((division) => {
+              const divisionMatches = readyMatches.filter((m) => m.division === division);
+
+              if (divisionMatches.length === 0) return null;
+
+              return (
+                <div key={division}>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                    {division === 'champe1' ? 'Champe 1' : 'Champe 2'}
+                  </h3>
+                  <div className="space-y-3">
+                    {divisionMatches.map((match) => (
+                      <div key={match.match_id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="text-sm font-medium text-slate-500">
+                              J{match.round_number}
+                            </span>
+                            <span className="text-sm text-slate-600">
+                              {new Date(match.match_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                            </span>
+                            {match.is_final && (
+                              <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">
+                                FINALE
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm font-medium text-slate-900">
+                            {match.team1_name} vs {match.team2_name}
+                          </div>
+                          <div className="flex items-center gap-4 mt-2">
+                            <span className="text-xs text-slate-600">
+                              {match.team1_name}: {match.team1_selections}/{match.is_final ? 10 : 8} joueurs
+                            </span>
+                            <span className="text-xs text-slate-600">
+                              {match.team2_name}: {match.team2_selections}/{match.is_final ? 10 : 8} joueurs
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          {match.has_individual_matches ? (
+                            <div className="flex items-center gap-2 text-emerald-600">
+                              <CheckCircle className="h-5 w-5" />
+                              <span className="text-sm font-medium">Généré</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleGenerateIndividualMatches(match.match_id)}
+                              disabled={generatingMatch === match.match_id}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                              <Zap className="h-4 w-4" />
+                              {generatingMatch === match.match_id ? 'Génération...' : 'Générer les parties'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {season?.is_configuration_validated && teamStatuses.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
