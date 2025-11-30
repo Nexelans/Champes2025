@@ -35,7 +35,9 @@ export default function ScorecardGenerator({
 }: ScorecardGeneratorProps) {
   const generateScorecard = async () => {
     try {
-      const [{ data: courseHoles }, { data: individualMatches }, { data: allPlayers }] = await Promise.all([
+      console.log('Generating scorecard for match:', matchId, 'host club:', hostClubId);
+
+      const [{ data: courseHoles, error: holesError }, { data: individualMatches, error: matchesError }, { data: allPlayers, error: playersError }] = await Promise.all([
         supabase
           .from('course_holes')
           .select('hole_number, stroke_index, par')
@@ -50,6 +52,28 @@ export default function ScorecardGenerator({
           .from('players')
           .select('id, first_name, last_name, handicap_index'),
       ]);
+
+      if (holesError) {
+        console.error('Error loading course holes:', holesError);
+        alert('Erreur lors du chargement du parcours: ' + holesError.message);
+        return;
+      }
+
+      if (matchesError) {
+        console.error('Error loading individual matches:', matchesError);
+        alert('Erreur lors du chargement des rencontres: ' + matchesError.message);
+        return;
+      }
+
+      if (playersError) {
+        console.error('Error loading players:', playersError);
+        alert('Erreur lors du chargement des joueurs: ' + playersError.message);
+        return;
+      }
+
+      console.log('Course holes:', courseHoles);
+      console.log('Individual matches:', individualMatches);
+      console.log('Players:', allPlayers);
 
       if (!courseHoles || courseHoles.length === 0) {
         alert('Les données du parcours ne sont pas configurées pour ce club. Veuillez les ajouter dans la section Parcours.');
@@ -72,6 +96,8 @@ export default function ScorecardGenerator({
         matchDate
       );
 
+      console.log('HTML generated, opening window...');
+
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write(html);
@@ -80,10 +106,12 @@ export default function ScorecardGenerator({
         setTimeout(() => {
           printWindow.print();
         }, 250);
+      } else {
+        alert('Impossible d\'ouvrir la fenêtre popup. Veuillez autoriser les popups pour ce site.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error generating scorecard:', err);
-      alert('Erreur lors de la génération de la feuille de score');
+      alert('Erreur lors de la génération de la feuille de score: ' + (err.message || err));
     }
   };
 
