@@ -120,57 +120,57 @@ export default function ConfigurationValidation() {
 
       setIssues(validationIssues);
 
-      const { data: teamStatusData } = await supabase.rpc('get_team_selection_status');
+      const { data: rawStatusData, error: statusError } = await supabase
+        .from('teams')
+        .select(`
+          id,
+          division,
+          clubs!inner(name)
+        `)
+        .eq('season_id', seasonData.id);
 
-      if (!teamStatusData) {
-        const { data: rawStatusData, error: statusError } = await supabase
-          .from('teams')
-          .select(`
-            id,
-            division,
-            clubs!inner(name),
-            captains!left(first_name, last_name, email)
-          `)
-          .eq('season_id', seasonData.id);
+      if (!statusError && rawStatusData) {
+        const statusPromises = rawStatusData.map(async (team: any) => {
+          const { data: captain } = await supabase
+            .from('captains')
+            .select('first_name, last_name, email')
+            .eq('team_id', team.id)
+            .maybeSingle();
 
-        if (!statusError && rawStatusData) {
-          const statusPromises = rawStatusData.map(async (team: any) => {
-            const { data: nextMatch } = await supabase
-              .from('matches')
-              .select('id, match_date, round_number')
-              .or(`team1_id.eq.${team.id},team2_id.eq.${team.id}`)
-              .gte('match_date', new Date().toISOString().split('T')[0])
-              .order('match_date', { ascending: true })
-              .limit(1)
-              .maybeSingle();
+          const { data: nextMatch } = await supabase
+            .from('matches')
+            .select('id, match_date, round_number')
+            .or(`team1_id.eq.${team.id},team2_id.eq.${team.id}`)
+            .gte('match_date', new Date().toISOString().split('T')[0])
+            .order('match_date', { ascending: true })
+            .limit(1)
+            .maybeSingle();
 
-            let playersSelected = 0;
-            if (nextMatch) {
-              const { data: selections } = await supabase
-                .from('match_player_selections')
-                .select('id')
-                .eq('match_id', nextMatch.id)
-                .eq('team_id', team.id);
-              playersSelected = selections?.length || 0;
-            }
+          let playersSelected = 0;
+          if (nextMatch) {
+            const { data: selections } = await supabase
+              .from('match_player_selections')
+              .select('id')
+              .eq('match_id', nextMatch.id)
+              .eq('team_id', team.id);
+            playersSelected = selections?.length || 0;
+          }
 
-            const captain = team.captains?.[0];
-            return {
-              team_id: team.id,
-              division: team.division,
-              club_name: team.clubs.name,
-              captain_name: captain ? `${captain.first_name} ${captain.last_name}` : 'Aucun capitaine',
-              captain_email: captain?.email || '',
-              next_match_date: nextMatch?.match_date || null,
-              round_number: nextMatch?.round_number || null,
-              players_selected: playersSelected,
-              is_locked: false,
-            };
-          });
+          return {
+            team_id: team.id,
+            division: team.division,
+            club_name: team.clubs.name,
+            captain_name: captain ? `${captain.first_name} ${captain.last_name}` : 'Aucun capitaine',
+            captain_email: captain?.email || '',
+            next_match_date: nextMatch?.match_date || null,
+            round_number: nextMatch?.round_number || null,
+            players_selected: playersSelected,
+            is_locked: false,
+          };
+        });
 
-          const statuses = await Promise.all(statusPromises);
-          setTeamStatuses(statuses);
-        }
+        const statuses = await Promise.all(statusPromises);
+        setTeamStatuses(statuses);
       }
     } catch (error) {
       console.error('Error loading validation status:', error);
