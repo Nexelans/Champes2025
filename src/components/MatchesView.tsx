@@ -339,7 +339,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
                             {im.team1_player2_name && (
                               <p className="font-medium text-slate-900">{im.team1_player2_name}</p>
                             )}
-                            {im.team1_handicap !== undefined && (
+                            {im.team1_handicap !== undefined && im.team1_handicap !== null && (
                               <p className="text-xs text-slate-500 mt-1">Index: {im.team1_handicap.toFixed(1)}</p>
                             )}
                           </div>
@@ -360,7 +360,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
                             {im.team2_player2_name && (
                               <p className="font-medium text-slate-900">{im.team2_player2_name}</p>
                             )}
-                            {im.team2_handicap !== undefined && (
+                            {im.team2_handicap !== undefined && im.team2_handicap !== null && (
                               <p className="text-xs text-slate-500 mt-1">Index: {im.team2_handicap.toFixed(1)}</p>
                             )}
                           </div>
