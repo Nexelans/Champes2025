@@ -175,6 +175,10 @@ export default function ScorecardGenerator({
       padding: 4px 2px;
       text-align: center;
       font-size: 9px;
+      width: 4.5%;
+    }
+    th:first-child, td:first-child {
+      width: 19%;
     }
     th {
       background-color: #e0e0e0;
@@ -192,8 +196,32 @@ export default function ScorecardGenerator({
       font-size: 10px;
     }
     .match-separator {
-      height: 12px;
-      background-color: #f5f5f5;
+      height: 0;
+      border: none;
+    }
+    .cut-line {
+      border: none;
+      height: 20px;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 16px;
+      color: #999;
+      position: relative;
+    }
+    .cut-line::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 1px dashed #999;
+      z-index: 0;
+    }
+    .cut-line span {
+      background: white;
+      padding: 0 10px;
+      position: relative;
+      z-index: 1;
     }
     .footer {
       margin-top: 20px;
@@ -235,9 +263,9 @@ export default function ScorecardGenerator({
           : [];
 
         return `
-      ${idx > 0 ? '<tr class="match-separator"><td colspan="20"></td></tr>' : ''}
+      ${idx > 0 ? '<tr><td colspan="20" class="cut-line"><span>✂</span></td></tr>' : ''}
       <tr>
-        <th style="width: 150px;">Trou</th>
+        <th>Trou</th>
         ${Array.from({ length: 18 }, (_, i) => `<th>${i + 1}</th>`).join('')}
         <th>Total</th>
       </tr>
