@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, CheckCircle, AlertTriangle, Lock, Unlock, AlertCircle } from 'lucide-react';
+import { Shield, CheckCircle, AlertTriangle, Lock, Unlock, AlertCircle, Users, Calendar } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -8,10 +8,23 @@ type ValidationIssue = {
   message: string;
 };
 
+type TeamSelectionStatus = {
+  team_id: string;
+  division: 'champe1' | 'champe2';
+  club_name: string;
+  captain_name: string;
+  captain_email: string;
+  next_match_date: string | null;
+  round_number: number | null;
+  players_selected: number;
+  is_locked: boolean;
+};
+
 export default function ConfigurationValidation() {
   const { user } = useAuth();
   const [season, setSeason] = useState<any>(null);
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
+  const [teamStatuses, setTeamStatuses] = useState<TeamSelectionStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
@@ -106,6 +119,59 @@ export default function ConfigurationValidation() {
       }
 
       setIssues(validationIssues);
+
+      const { data: teamStatusData } = await supabase.rpc('get_team_selection_status');
+
+      if (!teamStatusData) {
+        const { data: rawStatusData, error: statusError } = await supabase
+          .from('teams')
+          .select(`
+            id,
+            division,
+            clubs!inner(name),
+            captains!left(first_name, last_name, email)
+          `)
+          .eq('season_id', seasonData.id);
+
+        if (!statusError && rawStatusData) {
+          const statusPromises = rawStatusData.map(async (team: any) => {
+            const { data: nextMatch } = await supabase
+              .from('matches')
+              .select('id, match_date, round_number')
+              .or(`team1_id.eq.${team.id},team2_id.eq.${team.id}`)
+              .gte('match_date', new Date().toISOString().split('T')[0])
+              .order('match_date', { ascending: true })
+              .limit(1)
+              .maybeSingle();
+
+            let playersSelected = 0;
+            if (nextMatch) {
+              const { data: selections } = await supabase
+                .from('match_player_selections')
+                .select('id')
+                .eq('match_id', nextMatch.id)
+                .eq('team_id', team.id);
+              playersSelected = selections?.length || 0;
+            }
+
+            const captain = team.captains?.[0];
+            return {
+              team_id: team.id,
+              division: team.division,
+              club_name: team.clubs.name,
+              captain_name: captain ? `${captain.first_name} ${captain.last_name}` : 'Aucun capitaine',
+              captain_email: captain?.email || '',
+              next_match_date: nextMatch?.match_date || null,
+              round_number: nextMatch?.round_number || null,
+              players_selected: playersSelected,
+              is_locked: false,
+            };
+          });
+
+          const statuses = await Promise.all(statusPromises);
+          setTeamStatuses(statuses);
+        }
+      }
     } catch (error) {
       console.error('Error loading validation status:', error);
       setIssues([{ type: 'error', message: 'Erreur lors de la vérification' }]);
@@ -455,6 +521,98 @@ export default function ConfigurationValidation() {
           )}
         </div>
       </div>
+
+      {season?.is_configuration_validated && teamStatuses.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Users className="h-6 w-6 text-emerald-600" />
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Sélections des Capitaines</h2>
+              <p className="text-sm text-slate-600">État des sélections pour la prochaine journée</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {['champe1', 'champe2'].map((division) => {
+              const divisionTeams = teamStatuses.filter((t) => t.division === division);
+              if (divisionTeams.length === 0) return null;
+
+              return (
+                <div key={division}>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-3">
+                    {division === 'champe1' ? 'Champe 1' : 'Champe 2'}
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-700">Club</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-700">Capitaine</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-700">Prochain match</th>
+                          <th className="text-center py-3 px-4 text-sm font-medium text-slate-700">Joueurs sélectionnés</th>
+                          <th className="text-center py-3 px-4 text-sm font-medium text-slate-700">Statut</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {divisionTeams.map((team) => (
+                          <tr key={team.team_id} className="border-b border-slate-100 hover:bg-slate-50">
+                            <td className="py-3 px-4 text-sm text-slate-900 font-medium">
+                              {team.club_name}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-slate-600">
+                              {team.captain_name}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-slate-600">
+                              {team.next_match_date ? (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-slate-400" />
+                                  <span>
+                                    J{team.round_number} - {new Date(team.next_match_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">Aucun match</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium ${
+                                team.players_selected >= 10
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : team.players_selected > 0
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {team.players_selected}/10
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {team.next_match_date ? (
+                                team.players_selected >= 10 ? (
+                                  <div className="flex items-center justify-center gap-1 text-emerald-600">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span className="text-sm font-medium">Complet</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-1 text-amber-600">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <span className="text-sm font-medium">En cours</span>
+                                  </div>
+                                )
+                              ) : (
+                                <span className="text-sm text-slate-400">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {showUnlockDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
