@@ -18,7 +18,8 @@ export default function DatabaseBackup() {
     'match_player_selections',
     'captains',
     'admin_users',
-    'scratch_notifications'
+    'scratch_notifications',
+    'course_holes'
   ];
 
   const handleBackup = async () => {

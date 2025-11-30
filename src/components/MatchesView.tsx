@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Trophy, Users, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import ScorecardGenerator from './ScorecardGenerator';
 
 type MatchesViewProps = {
   division: 'champe1' | 'champe2';
@@ -13,6 +14,7 @@ type Match = {
   team1_club: string;
   team2_club: string;
   host_club: string;
+  host_club_id: string;
   team1_points: number;
   team2_points: number;
 };
@@ -82,6 +84,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
           match_date,
           team1_points,
           team2_points,
+          host_club_id,
           host_club:clubs!matches_host_club_id_fkey(name),
           team1:teams!matches_team1_id_fkey(
             club:clubs(name)
@@ -106,6 +109,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
           team1_club: m.team1?.club?.name || 'Inconnu',
           team2_club: m.team2?.club?.name || 'Inconnu',
           host_club: m.host_club?.name || 'À définir',
+          host_club_id: m.host_club_id,
           team1_points: m.team1_points || 0,
           team2_points: m.team2_points || 0,
         }));
@@ -307,11 +311,22 @@ export default function MatchesView({ division }: MatchesViewProps) {
                   Journée {selectedRound} • {formatDate(selectedMatchData.match_date)} • {selectedMatchData.host_club}
                 </p>
               </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold">
-                  {selectedMatchData.team1_points} - {selectedMatchData.team2_points}
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <div className="text-3xl font-bold">
+                    {selectedMatchData.team1_points} - {selectedMatchData.team2_points}
+                  </div>
+                  <p className="text-emerald-100 text-sm">Points</p>
                 </div>
-                <p className="text-emerald-100 text-sm">Points</p>
+                {individualMatches.length > 0 && (
+                  <ScorecardGenerator
+                    matchId={selectedMatchData.id}
+                    hostClubId={selectedMatchData.host_club_id}
+                    team1Name={selectedMatchData.team1_club}
+                    team2Name={selectedMatchData.team2_club}
+                    matchDate={selectedMatchData.match_date}
+                  />
+                )}
               </div>
             </div>
           </div>
