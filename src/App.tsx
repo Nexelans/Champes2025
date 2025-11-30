@@ -206,10 +206,10 @@ function App() {
         {activeTab === 'backup' && <DatabaseBackup />}
       </main>
 
-      {!user && (
-        <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-center gap-4">
+      <footer className="mt-12 border-t border-slate-200 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {!user && (
+            <div className="flex items-center justify-center gap-4 mb-4">
               <button
                 onClick={() => {
                   setLoginType('captain');
@@ -231,9 +231,20 @@ function App() {
                 <span>Admin</span>
               </button>
             </div>
+          )}
+          <div className="text-center text-sm text-slate-500">
+            2025, site réalisé par{' '}
+            <a
+              href="https://nexelans.fr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
+            >
+              Nexelans
+            </a>
           </div>
-        </footer>
-      )}
+        </div>
+      </footer>
 
       {showLoginModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

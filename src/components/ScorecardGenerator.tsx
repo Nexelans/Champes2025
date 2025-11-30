@@ -107,7 +107,7 @@ export default function ScorecardGenerator({
     const strokeIndexes = holes.map(h => h.stroke_index);
     const pars = holes.map(h => h.par);
 
-    let scorecardHTML = `
+    const scorecardHTML = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -115,199 +115,152 @@ export default function ScorecardGenerator({
   <title>Feuille de Score - ${team1} vs ${team2}</title>
   <style>
     @media print {
-      @page { size: landscape; margin: 10mm; }
+      @page { size: landscape; margin: 8mm; }
       body { margin: 0; }
     }
     body {
       font-family: Arial, sans-serif;
-      font-size: 10px;
-      line-height: 1.2;
-      margin: 20px;
+      font-size: 8px;
+      line-height: 1.1;
+      margin: 10px;
     }
-    .page-break { page-break-after: always; }
     .header {
       text-align: center;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       border-bottom: 2px solid #000;
-      padding-bottom: 10px;
+      padding-bottom: 5px;
     }
-    .header h1 { margin: 0 0 5px 0; font-size: 18px; }
-    .header h2 { margin: 0; font-size: 14px; font-weight: normal; }
+    .header h1 { margin: 0 0 3px 0; font-size: 16px; }
+    .header h2 { margin: 0; font-size: 12px; font-weight: normal; }
     .match-info {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 10px;
-      font-size: 11px;
+      margin-bottom: 8px;
+      font-size: 9px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 20px;
+      margin-bottom: 3px;
     }
     th, td {
       border: 1px solid #333;
-      padding: 4px 2px;
+      padding: 2px 1px;
       text-align: center;
+      font-size: 7px;
     }
     th {
       background-color: #e0e0e0;
       font-weight: bold;
-      font-size: 9px;
     }
-    .player-name {
+    .player-row {
       text-align: left;
-      padding-left: 5px;
+      padding-left: 3px;
       font-weight: bold;
+      font-size: 7px;
     }
-    .stroke-hole {
+    .stroke-row {
       background-color: #ffffcc;
       font-weight: bold;
+      font-size: 8px;
     }
-    .totals {
-      background-color: #f0f0f0;
-      font-weight: bold;
+    .match-separator {
+      height: 8px;
+      background-color: #f5f5f5;
     }
-    .signature {
-      margin-top: 20px;
-      display: flex;
-      justify-content: space-around;
-    }
-    .signature div {
+    .footer {
+      position: fixed;
+      bottom: 5mm;
+      left: 0;
+      right: 0;
       text-align: center;
+      font-size: 8px;
+      color: #666;
     }
-    .sig-line {
-      border-top: 1px solid #000;
-      width: 200px;
-      margin-top: 30px;
+    .footer a {
+      color: #059669;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
-<body>`;
+<body>
+  <div class="header">
+    <h1>Championnat Champe - Feuille de Score</h1>
+    <h2>${team1} vs ${team2}</h2>
+  </div>
 
-    matches.forEach((match, idx) => {
-      const player1 = playersMap.get(match.team1_player_id);
-      const player2 = playersMap.get(match.team2_player_id);
+  <div class="match-info">
+    <div><strong>Date:</strong> ${new Date(date).toLocaleDateString('fr-FR')}</div>
+  </div>
 
-      if (!player1 || !player2) return;
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 120px;">Joueur</th>
+        ${Array.from({ length: 18 }, (_, i) => `<th>${i + 1}</th>`).join('')}
+        <th>Total</th>
+      </tr>
+      <tr>
+        <th>PAR</th>
+        ${pars.map(p => `<th>${p}</th>`).join('')}
+        <th>${pars.reduce((a, b) => a + b, 0)}</th>
+      </tr>
+      <tr>
+        <th>SI</th>
+        ${strokeIndexes.map(si => `<th>${si}</th>`).join('')}
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      ${matches.map((match, idx) => {
+        const player1 = playersMap.get(match.team1_player_id);
+        const player2 = playersMap.get(match.team2_player_id);
 
-      const strokeHolesTeam1 = match.strokes_receiver === 1
-        ? calculateStrokeHoles(strokeIndexes, match.strokes_given)
-        : [];
-      const strokeHolesTeam2 = match.strokes_receiver === 2
-        ? calculateStrokeHoles(strokeIndexes, match.strokes_given)
-        : [];
+        if (!player1 || !player2) return '';
 
-      scorecardHTML += `
-  <div class="${idx < matches.length - 1 ? 'page-break' : ''}">
-    <div class="header">
-      <h1>Championnat Champe - Feuille de Score</h1>
-      <h2>${team1} vs ${team2}</h2>
-    </div>
+        const strokeHolesTeam1 = match.strokes_receiver === 1
+          ? calculateStrokeHoles(strokeIndexes, match.strokes_given)
+          : [];
+        const strokeHolesTeam2 = match.strokes_receiver === 2
+          ? calculateStrokeHoles(strokeIndexes, match.strokes_given)
+          : [];
 
-    <div class="match-info">
-      <div><strong>Match ${match.match_order}</strong></div>
-      <div><strong>Date:</strong> ${new Date(date).toLocaleDateString('fr-FR')}</div>
-    </div>
+        return `
+      ${idx > 0 ? '<tr class="match-separator"><td colspan="21"></td></tr>' : ''}
+      <tr>
+        <td class="player-row">${match.match_order}. ${player1.first_name} ${player1.last_name} (${team1.substring(0, 15)}) - Index ${player1.handicap_index}</td>
+        ${Array.from({ length: 18 }, (_, i) => `<td></td>`).join('')}
+        <td></td>
+      </tr>
+      <tr>
+        <td class="stroke-row">Coups rendus</td>
+        ${Array.from({ length: 18 }, (_, i) => {
+          const hasStroke1 = strokeHolesTeam1.includes(i + 1);
+          const hasStroke2 = strokeHolesTeam2.includes(i + 1);
+          return `<td class="stroke-row">${hasStroke1 ? '1' : hasStroke2 ? '2' : '0'}</td>`;
+        }).join('')}
+        <td class="stroke-row">${match.strokes_given > 0 ? match.strokes_receiver : ''}</td>
+      </tr>
+      <tr>
+        <td class="player-row">${match.match_order}. ${player2.first_name} ${player2.last_name} (${team2.substring(0, 15)}) - Index ${player2.handicap_index}</td>
+        ${Array.from({ length: 18 }, (_, i) => `<td></td>`).join('')}
+        <td></td>
+      </tr>
+        `;
+      }).join('')}
+    </tbody>
+  </table>
 
-    <table>
-      <thead>
-        <tr>
-          <th rowspan="2">Trou</th>
-          <th colspan="9">ALLER</th>
-          <th rowspan="2">Total</th>
-          <th colspan="9">RETOUR</th>
-          <th rowspan="2">Total</th>
-          <th rowspan="2">Score</th>
-        </tr>
-        <tr>
-          ${Array.from({ length: 9 }, (_, i) => `<th>${i + 1}</th>`).join('')}
-          ${Array.from({ length: 9 }, (_, i) => `<th>${i + 10}</th>`).join('')}
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Par</strong></td>
-          ${pars.slice(0, 9).map(p => `<td>${p}</td>`).join('')}
-          <td class="totals">${pars.slice(0, 9).reduce((a, b) => a + b, 0)}</td>
-          ${pars.slice(9, 18).map(p => `<td>${p}</td>`).join('')}
-          <td class="totals">${pars.slice(9, 18).reduce((a, b) => a + b, 0)}</td>
-          <td class="totals">${pars.reduce((a, b) => a + b, 0)}</td>
-        </tr>
-        <tr>
-          <td><strong>SI</strong></td>
-          ${strokeIndexes.slice(0, 9).map(si => `<td style="font-size: 8px;">${si}</td>`).join('')}
-          <td></td>
-          ${strokeIndexes.slice(9, 18).map(si => `<td style="font-size: 8px;">${si}</td>`).join('')}
-          <td></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td class="player-name">${player1.first_name} ${player1.last_name}</td>
-          ${Array.from({ length: 9 }, (_, i) => {
-            const isStrokeHole = strokeHolesTeam1.includes(i + 1);
-            return `<td class="${isStrokeHole ? 'stroke-hole' : ''}">${isStrokeHole ? '●' : ''}</td>`;
-          }).join('')}
-          <td class="totals"></td>
-          ${Array.from({ length: 9 }, (_, i) => {
-            const isStrokeHole = strokeHolesTeam1.includes(i + 10);
-            return `<td class="${isStrokeHole ? 'stroke-hole' : ''}">${isStrokeHole ? '●' : ''}</td>`;
-          }).join('')}
-          <td class="totals"></td>
-          <td class="totals"></td>
-        </tr>
-        <tr>
-          <td class="player-name" style="font-size: 8px;">Index: ${player1.handicap_index}</td>
-          <td colspan="10" style="text-align: left; padding-left: 5px; font-size: 9px;">
-            ${team1}${match.strokes_receiver === 1 ? ` - Reçoit ${match.strokes_given} coup${match.strokes_given > 1 ? 's' : ''}` : ''}
-          </td>
-          <td colspan="10"></td>
-          <td></td>
-        </tr>
-        <tr style="height: 15px;"><td colspan="23"></td></tr>
-        <tr>
-          <td class="player-name">${player2.first_name} ${player2.last_name}</td>
-          ${Array.from({ length: 9 }, (_, i) => {
-            const isStrokeHole = strokeHolesTeam2.includes(i + 1);
-            return `<td class="${isStrokeHole ? 'stroke-hole' : ''}">${isStrokeHole ? '●' : ''}</td>`;
-          }).join('')}
-          <td class="totals"></td>
-          ${Array.from({ length: 9 }, (_, i) => {
-            const isStrokeHole = strokeHolesTeam2.includes(i + 10);
-            return `<td class="${isStrokeHole ? 'stroke-hole' : ''}">${isStrokeHole ? '●' : ''}</td>`;
-          }).join('')}
-          <td class="totals"></td>
-          <td class="totals"></td>
-        </tr>
-        <tr>
-          <td class="player-name" style="font-size: 8px;">Index: ${player2.handicap_index}</td>
-          <td colspan="10" style="text-align: left; padding-left: 5px; font-size: 9px;">
-            ${team2}${match.strokes_receiver === 2 ? ` - Reçoit ${match.strokes_given} coup${match.strokes_given > 1 ? 's' : ''}` : ''}
-          </td>
-          <td colspan="10"></td>
-          <td></td>
-        </tr>
-      </tbody>
-    </table>
+  <div style="margin-top: 10px; font-size: 8px; color: #666;">
+    <p><strong>Instructions :</strong> La ligne centrale indique les coups rendus : 1 = coup pour joueur 1, 2 = coup pour joueur 2, 0 = pas de coup</p>
+  </div>
 
-    <div style="margin-top: 30px; font-size: 11px;">
-      <p><strong>Résultat du match:</strong> _________________________________</p>
-      <p style="font-size: 9px; color: #666;">● = Coup de handicap reçu sur ce trou</p>
-    </div>
-
-    <div class="signature">
-      <div>
-        <div>Capitaine ${team1}</div>
-        <div class="sig-line"></div>
-      </div>
-      <div>
-        <div>Capitaine ${team2}</div>
-        <div class="sig-line"></div>
-      </div>
-    </div>
-  </div>`;
-    });
-
-    scorecardHTML += `
+  <div class="footer">
+    2025, site réalisé par <a href="https://nexelans.fr" target="_blank">Nexelans</a>
+  </div>
 </body>
 </html>`;
 
