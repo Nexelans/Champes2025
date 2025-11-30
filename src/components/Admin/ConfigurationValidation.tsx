@@ -18,6 +18,7 @@ type TeamSelectionStatus = {
   round_number: number | null;
   players_selected: number;
   is_locked: boolean;
+  is_final: boolean;
 };
 
 export default function ConfigurationValidation() {
@@ -156,6 +157,7 @@ export default function ConfigurationValidation() {
             playersSelected = selections?.length || 0;
           }
 
+          const isFinal = nextMatch?.round_number === 6;
           return {
             team_id: team.id,
             division: team.division,
@@ -166,6 +168,7 @@ export default function ConfigurationValidation() {
             round_number: nextMatch?.round_number || null,
             players_selected: playersSelected,
             is_locked: false,
+            is_final: isFinal,
           };
         });
 
@@ -575,19 +578,23 @@ export default function ConfigurationValidation() {
                               )}
                             </td>
                             <td className="py-3 px-4 text-center">
-                              <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium ${
-                                team.players_selected >= 10
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : team.players_selected > 0
-                                  ? 'bg-amber-100 text-amber-700'
-                                  : 'bg-slate-100 text-slate-600'
-                              }`}>
-                                {team.players_selected}/10
-                              </span>
+                              {team.next_match_date ? (
+                                <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium ${
+                                  team.players_selected >= (team.is_final ? 10 : 8)
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : team.players_selected > 0
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {team.players_selected}/{team.is_final ? 10 : 8}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-slate-400">-</span>
+                              )}
                             </td>
                             <td className="py-3 px-4 text-center">
                               {team.next_match_date ? (
-                                team.players_selected >= 10 ? (
+                                team.players_selected >= (team.is_final ? 10 : 8) ? (
                                   <div className="flex items-center justify-center gap-1 text-emerald-600">
                                     <CheckCircle className="h-4 w-4" />
                                     <span className="text-sm font-medium">Complet</span>
