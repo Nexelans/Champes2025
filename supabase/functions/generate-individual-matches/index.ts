@@ -118,6 +118,10 @@ Deno.serve(async (req: Request) => {
           team1_player2_id: team1Player2.player_id,
           team2_player_id: team2Player1.player_id,
           team2_player2_id: team2Player2.player_id,
+          team1_handicap: team1AvgHandicap,
+          team2_handicap: team2AvgHandicap,
+          strokes_given: strokeInfo.strokes,
+          strokes_receiver: strokeInfo.strokes > 0 ? strokeInfo.receiver : null,
           result: null,
           team1_points: 0,
           team2_points: 0,
@@ -134,7 +138,7 @@ Deno.serve(async (req: Request) => {
 
         const strokeInfo = calculateStrokesGiven(team1Handicap, team2Handicap);
         const scoreDetail = strokeInfo.strokes > 0
-          ? `${strokeInfo.strokes > 1 ? 's' : ''} rendu${strokeInfo.strokes > 1 ? 's' : ''} au joueur ${strokeInfo.receiver}`
+          ? `${strokeInfo.strokes} coup${strokeInfo.strokes > 1 ? 's' : ''} rendu${strokeInfo.strokes > 1 ? 's' : ''} au joueur ${strokeInfo.receiver}`
           : 'Égalité de handicap';
 
         individualMatchesToInsert.push({
@@ -144,6 +148,10 @@ Deno.serve(async (req: Request) => {
           team2_player_id: team2Player.player_id,
           team1_player2_id: null,
           team2_player2_id: null,
+          team1_handicap: team1Handicap,
+          team2_handicap: team2Handicap,
+          strokes_given: strokeInfo.strokes,
+          strokes_receiver: strokeInfo.strokes > 0 ? strokeInfo.receiver : null,
           result: null,
           team1_points: 0,
           team2_points: 0,

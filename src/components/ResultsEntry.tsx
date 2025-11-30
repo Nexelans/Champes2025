@@ -22,6 +22,10 @@ interface IndividualMatch {
   team2_player_name: string;
   team1_player2_name?: string;
   team2_player2_name?: string;
+  team1_handicap?: number;
+  team2_handicap?: number;
+  strokes_given?: number;
+  strokes_receiver?: number;
   result: string | null;
   score_detail: string | null;
   team1_points: number;
@@ -119,6 +123,10 @@ export default function ResultsEntry() {
           score_detail,
           team1_points,
           team2_points,
+          team1_handicap,
+          team2_handicap,
+          strokes_given,
+          strokes_receiver,
           team1_player:players!individual_matches_team1_player_id_fkey(first_name, last_name),
           team2_player:players!individual_matches_team2_player_id_fkey(first_name, last_name),
           team1_player2:players!individual_matches_team1_player2_id_fkey(first_name, last_name),
@@ -136,6 +144,10 @@ export default function ResultsEntry() {
         team2_player_name: im.team2_player ? `${im.team2_player.first_name} ${im.team2_player.last_name}` : 'À définir',
         team1_player2_name: im.team1_player2 ? `${im.team1_player2.first_name} ${im.team1_player2.last_name}` : undefined,
         team2_player2_name: im.team2_player2 ? `${im.team2_player2.first_name} ${im.team2_player2.last_name}` : undefined,
+        team1_handicap: im.team1_handicap,
+        team2_handicap: im.team2_handicap,
+        strokes_given: im.strokes_given,
+        strokes_receiver: im.strokes_receiver,
         result: im.result,
         score_detail: im.score_detail,
         team1_points: im.team1_points,
@@ -348,6 +360,9 @@ export default function ResultsEntry() {
                       {im.team1_player2_name && (
                         <p className="font-medium text-slate-900">{im.team1_player2_name}</p>
                       )}
+                      {im.team1_handicap !== undefined && (
+                        <p className="text-xs text-slate-500 mt-1">Index: {im.team1_handicap.toFixed(1)}</p>
+                      )}
                     </div>
                     <div className="text-center text-slate-400 font-semibold">vs</div>
                     <div>
@@ -355,9 +370,20 @@ export default function ResultsEntry() {
                       {im.team2_player2_name && (
                         <p className="font-medium text-slate-900">{im.team2_player2_name}</p>
                       )}
+                      {im.team2_handicap !== undefined && (
+                        <p className="text-xs text-slate-500 mt-1">Index: {im.team2_handicap.toFixed(1)}</p>
+                      )}
                     </div>
                   </div>
                 </div>
+
+                {im.strokes_given !== undefined && im.strokes_given > 0 && (
+                  <div className="mb-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded text-center">
+                    <p className="text-sm font-medium text-blue-800">
+                      {im.strokes_given} coup{im.strokes_given > 1 ? 's' : ''} rendu{im.strokes_given > 1 ? 's' : ''} {im.strokes_receiver === 1 ? `à ${im.team1_player_name}` : `à ${im.team2_player_name}`}
+                    </p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                   <div>

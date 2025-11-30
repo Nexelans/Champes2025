@@ -23,6 +23,10 @@ type IndividualMatch = {
   team2_player_name: string;
   team1_player2_name?: string;
   team2_player2_name?: string;
+  team1_handicap?: number;
+  team2_handicap?: number;
+  strokes_given?: number;
+  strokes_receiver?: number;
   result: string | null;
   team1_points: number;
   team2_points: number;
@@ -125,6 +129,10 @@ export default function MatchesView({ division }: MatchesViewProps) {
           result,
           team1_points,
           team2_points,
+          team1_handicap,
+          team2_handicap,
+          strokes_given,
+          strokes_receiver,
           team1_player:players!individual_matches_team1_player_id_fkey(first_name, last_name),
           team2_player:players!individual_matches_team2_player_id_fkey(first_name, last_name),
           team1_player2:players!individual_matches_team1_player2_id_fkey(first_name, last_name),
@@ -143,6 +151,10 @@ export default function MatchesView({ division }: MatchesViewProps) {
           team1_player2_name: im.team1_player2
             ? `${im.team1_player2.first_name} ${im.team1_player2.last_name}`
             : undefined,
+          team1_handicap: im.team1_handicap,
+          team2_handicap: im.team2_handicap,
+          strokes_given: im.strokes_given,
+          strokes_receiver: im.strokes_receiver,
           team2_player2_name: im.team2_player2
             ? `${im.team2_player2.first_name} ${im.team2_player2.last_name}`
             : undefined,
@@ -327,16 +339,29 @@ export default function MatchesView({ division }: MatchesViewProps) {
                             {im.team1_player2_name && (
                               <p className="font-medium text-slate-900">{im.team1_player2_name}</p>
                             )}
+                            {im.team1_handicap !== undefined && (
+                              <p className="text-xs text-slate-500 mt-1">Index: {im.team1_handicap.toFixed(1)}</p>
+                            )}
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-lg font-bold text-slate-700">{im.team1_points}</span>
-                            <span className="text-slate-400 font-semibold">vs</span>
-                            <span className="text-lg font-bold text-slate-700">{im.team2_points}</span>
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg font-bold text-slate-700">{im.team1_points}</span>
+                              <span className="text-slate-400 font-semibold">vs</span>
+                              <span className="text-lg font-bold text-slate-700">{im.team2_points}</span>
+                            </div>
+                            {im.strokes_given !== undefined && im.strokes_given > 0 && (
+                              <p className="text-xs text-blue-600 font-medium">
+                                {im.strokes_given} coup{im.strokes_given > 1 ? 's' : ''}
+                              </p>
+                            )}
                           </div>
                           <div className="flex-1">
                             <p className="font-medium text-slate-900">{im.team2_player_name}</p>
                             {im.team2_player2_name && (
                               <p className="font-medium text-slate-900">{im.team2_player2_name}</p>
+                            )}
+                            {im.team2_handicap !== undefined && (
+                              <p className="text-xs text-slate-500 mt-1">Index: {im.team2_handicap.toFixed(1)}</p>
                             )}
                           </div>
                         </div>
