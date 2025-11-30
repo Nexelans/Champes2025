@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Users, AlertCircle, Save, X } from 'lucide-react';
+import { Calendar, Users, AlertCircle, Save, X, Bell, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface Player {
@@ -48,6 +48,10 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [daysBeforeLock, setDaysBeforeLock] = useState(3);
+  const [showScratchDialog, setShowScratchDialog] = useState(false);
+  const [scratchMessage, setScratchMessage] = useState('');
+  const [reportingScratch, setReportingScratch] = useState(false);
+  const [hasAcknowledgedScratch, setHasAcknowledgedScratch] = useState(false);
 
   useEffect(() => {
     loadMatches();
@@ -58,8 +62,27 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
   useEffect(() => {
     if (selectedMatch) {
       loadSelections();
+      checkScratchNotification();
     }
   }, [selectedMatch]);
+
+  const checkScratchNotification = async () => {
+    if (!selectedMatch) return;
+
+    try {
+      const { data } = await supabase
+        .from('scratch_notifications')
+        .select('status')
+        .eq('match_id', selectedMatch.id)
+        .eq('team_id', captain.team_id)
+        .eq('status', 'acknowledged')
+        .maybeSingle();
+
+      setHasAcknowledgedScratch(!!data);
+    } catch (err) {
+      console.error('Error checking scratch notification:', err);
+    }
+  };
 
   const loadSeasonConfig = async () => {
     try {
@@ -196,7 +219,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
 
   const canModifySelection = () => {
     if (!selectedMatch) return false;
-    return !isMatchLocked(selectedMatch.match_date);
+    return !isMatchLocked(selectedMatch.match_date) || hasAcknowledgedScratch;
   };
 
   const getDaysUntilLock = (matchDate: string) => {
@@ -228,6 +251,43 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
 
       const nextOrder = selectedPlayers.length + 1;
       setSelectedPlayers(prev => [...prev, { player_id: playerId, selection_order: nextOrder }]);
+    }
+  };
+
+  const handleReportScratch = async () => {
+    if (!selectedMatch || !scratchMessage.trim()) {
+      setError('Veuillez décrire la situation');
+      return;
+    }
+
+    setReportingScratch(true);
+    setError(null);
+
+    try {
+      const { error: insertError } = await supabase
+        .from('scratch_notifications')
+        .insert({
+          match_id: selectedMatch.id,
+          team_id: captain.team_id,
+          captain_id: captain.id,
+          message: scratchMessage.trim(),
+          status: 'pending',
+        });
+
+      if (insertError) throw insertError;
+
+      setSuccess(true);
+      setShowScratchDialog(false);
+      setScratchMessage('');
+      setTimeout(() => {
+        setSuccess(false);
+        setError('Notification envoyée à l\'administrateur. Vous pourrez modifier votre sélection une fois la demande acceptée.');
+      }, 2000);
+    } catch (err) {
+      console.error('Error reporting scratch:', err);
+      setError('Erreur lors de l\'envoi de la notification');
+    } finally {
+      setReportingScratch(false);
     }
   };
 
@@ -391,11 +451,29 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
             </div>
           </div>
 
-          {!canModifySelection() && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 flex items-start space-x-2">
-              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-amber-800">
-                La sélection est verrouillée {daysBeforeLock} jour{daysBeforeLock > 1 ? 's' : ''} avant la rencontre.
+          {!canModifySelection() && !hasAcknowledgedScratch && (
+            <div className="space-y-3">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start space-x-2">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800">
+                  La sélection est verrouillée {daysBeforeLock} jour{daysBeforeLock > 1 ? 's' : ''} avant la rencontre.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowScratchDialog(true)}
+                className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <Bell className="w-4 h-4" />
+                Signaler un joueur absent
+              </button>
+            </div>
+          )}
+
+          {hasAcknowledgedScratch && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4 flex items-start space-x-2">
+              <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-emerald-800">
+                Votre demande de modification a été acceptée. Vous pouvez maintenant modifier votre sélection.
               </p>
             </div>
           )}
@@ -468,6 +546,49 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {showScratchDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Signaler un joueur absent</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Expliquez la situation à l'administrateur. Une fois votre demande acceptée, vous pourrez modifier votre sélection.
+            </p>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Description de la situation
+              </label>
+              <textarea
+                value={scratchMessage}
+                onChange={(e) => setScratchMessage(e.target.value)}
+                placeholder="Ex: Le joueur X s'est blessé et ne peut pas participer..."
+                rows={4}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowScratchDialog(false);
+                  setScratchMessage('');
+                }}
+                className="flex-1 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleReportScratch}
+                disabled={reportingScratch || !scratchMessage.trim()}
+                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {reportingScratch ? 'Envoi...' : 'Envoyer'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

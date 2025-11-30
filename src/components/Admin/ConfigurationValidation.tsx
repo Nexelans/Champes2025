@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, CheckCircle, AlertTriangle, Lock, Unlock, AlertCircle, Users, Calendar, Zap } from 'lucide-react';
+import { Shield, CheckCircle, AlertTriangle, Lock, Unlock, AlertCircle, Users, Calendar, Zap, Bell } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -35,12 +35,26 @@ type ReadyMatch = {
   has_individual_matches: boolean;
 };
 
+type ScratchNotification = {
+  id: string;
+  match_id: string;
+  team_id: string;
+  captain_name: string;
+  team_name: string;
+  message: string;
+  status: 'pending' | 'acknowledged' | 'resolved';
+  created_at: string;
+  match_date: string;
+  round_number: number;
+};
+
 export default function ConfigurationValidation() {
   const { user } = useAuth();
   const [season, setSeason] = useState<any>(null);
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [teamStatuses, setTeamStatuses] = useState<TeamSelectionStatus[]>([]);
   const [readyMatches, setReadyMatches] = useState<ReadyMatch[]>([]);
+  const [scratchNotifications, setScratchNotifications] = useState<ScratchNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [generatingMatch, setGeneratingMatch] = useState<string | null>(null);
@@ -250,12 +264,95 @@ export default function ConfigurationValidation() {
           const readyMatchesResults = await Promise.all(readyMatchesPromises);
           setReadyMatches(readyMatchesResults.filter((m): m is ReadyMatch => m !== null));
         }
+
+        const { data: notificationsData } = await supabase
+          .from('scratch_notifications')
+          .select(`
+            id,
+            match_id,
+            team_id,
+            message,
+            status,
+            created_at,
+            captains!inner(first_name, last_name),
+            teams!inner(clubs(name)),
+            matches!inner(match_date, round_number)
+          `)
+          .in('status', ['pending', 'acknowledged'])
+          .order('created_at', { ascending: false });
+
+        if (notificationsData) {
+          const notifications: ScratchNotification[] = notificationsData.map((n: any) => ({
+            id: n.id,
+            match_id: n.match_id,
+            team_id: n.team_id,
+            captain_name: `${n.captains.first_name} ${n.captains.last_name}`,
+            team_name: n.teams.clubs.name,
+            message: n.message,
+            status: n.status,
+            created_at: n.created_at,
+            match_date: n.matches.match_date,
+            round_number: n.matches.round_number,
+          }));
+          setScratchNotifications(notifications);
+        }
       }
     } catch (error) {
       console.error('Error loading validation status:', error);
       setIssues([{ type: 'error', message: 'Erreur lors de la vérification' }]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAcknowledgeScratch = async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('scratch_notifications')
+        .update({
+          status: 'acknowledged',
+          acknowledged_at: new Date().toISOString(),
+        })
+        .eq('id', notificationId);
+
+      if (error) throw error;
+
+      setMessage({
+        type: 'success',
+        text: 'Notification acceptée. Le capitaine peut maintenant modifier sa sélection.',
+      });
+
+      await loadValidationStatus();
+    } catch (error) {
+      console.error('Error acknowledging scratch:', error);
+      setMessage({
+        type: 'error',
+        text: 'Erreur lors de l\'acceptation de la notification',
+      });
+    }
+  };
+
+  const handleResolveScratch = async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('scratch_notifications')
+        .update({ status: 'resolved' })
+        .eq('id', notificationId);
+
+      if (error) throw error;
+
+      setMessage({
+        type: 'success',
+        text: 'Notification marquée comme résolue.',
+      });
+
+      await loadValidationStatus();
+    } catch (error) {
+      console.error('Error resolving scratch:', error);
+      setMessage({
+        type: 'error',
+        text: 'Erreur lors de la résolution de la notification',
+      });
     }
   };
 
@@ -649,6 +746,85 @@ export default function ConfigurationValidation() {
           )}
         </div>
       </div>
+
+      {season?.is_configuration_validated && scratchNotifications.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Bell className="h-6 w-6 text-orange-600" />
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Notifications de Scratch</h2>
+              <p className="text-sm text-slate-600">Joueurs absents signalés par les capitaines</p>
+            </div>
+            {scratchNotifications.filter(n => n.status === 'pending').length > 0 && (
+              <span className="ml-auto px-3 py-1 bg-orange-100 text-orange-700 text-sm font-medium rounded-full">
+                {scratchNotifications.filter(n => n.status === 'pending').length} en attente
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {scratchNotifications.map((notification) => (
+              <div key={notification.id} className={`p-4 rounded-lg border ${
+                notification.status === 'pending'
+                  ? 'bg-orange-50 border-orange-200'
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-sm font-medium text-slate-900">
+                        {notification.team_name}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        J{notification.round_number} - {new Date(notification.match_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${
+                        notification.status === 'pending'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {notification.status === 'pending' ? 'En attente' : 'Acceptée'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-2">
+                      Capitaine: {notification.captain_name}
+                    </p>
+                    <p className="text-sm text-slate-700 italic">
+                      "{notification.message}"
+                    </p>
+                    <p className="text-xs text-slate-500 mt-2">
+                      Signalé le {new Date(notification.created_at).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'long',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {notification.status === 'pending' && (
+                      <button
+                        onClick={() => handleAcknowledgeScratch(notification.id)}
+                        className="px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 font-medium transition-colors"
+                      >
+                        Accepter
+                      </button>
+                    )}
+                    {notification.status === 'acknowledged' && (
+                      <button
+                        onClick={() => handleResolveScratch(notification.id)}
+                        className="px-3 py-1.5 bg-slate-600 text-white text-sm rounded-lg hover:bg-slate-700 font-medium transition-colors"
+                      >
+                        Marquer résolu
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {season?.is_configuration_validated && readyMatches.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
