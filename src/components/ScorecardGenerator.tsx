@@ -143,38 +143,38 @@ export default function ScorecardGenerator({
   <title>Feuille de Score - ${team1} vs ${team2}</title>
   <style>
     @media print {
-      @page { size: portrait; margin: 8mm; }
+      @page { size: portrait; margin: 5mm; }
       body { margin: 0; }
     }
     body {
       font-family: Arial, sans-serif;
-      font-size: 10px;
-      line-height: 1.2;
-      margin: 10px;
+      font-size: 9px;
+      line-height: 1.1;
+      margin: 5px;
     }
     .header {
       text-align: center;
-      margin-bottom: 15px;
-      border-bottom: 2px solid #000;
-      padding-bottom: 8px;
+      margin-bottom: 5px;
+      border-bottom: 1px solid #000;
+      padding-bottom: 3px;
     }
-    .header h1 { margin: 0 0 5px 0; font-size: 18px; }
-    .header h2 { margin: 0; font-size: 14px; font-weight: normal; }
+    .header h1 { margin: 0 0 2px 0; font-size: 14px; }
+    .header h2 { margin: 0; font-size: 11px; font-weight: normal; }
     .match-info {
       text-align: center;
-      margin-bottom: 12px;
-      font-size: 11px;
+      margin-bottom: 5px;
+      font-size: 9px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 8px;
+      margin-bottom: 3px;
     }
     th, td {
       border: 1px solid #333;
-      padding: 4px 2px;
+      padding: 2px 1px;
       text-align: center;
-      font-size: 9px;
+      font-size: 8px;
       width: 4.5%;
     }
     th:first-child, td:first-child {
@@ -186,14 +186,14 @@ export default function ScorecardGenerator({
     }
     .player-row {
       text-align: left;
-      padding-left: 5px;
+      padding-left: 3px;
       font-weight: bold;
-      font-size: 9px;
+      font-size: 8px;
     }
     .stroke-row {
       background-color: #ffffcc;
       font-weight: bold;
-      font-size: 10px;
+      font-size: 8px;
     }
     .match-separator {
       height: 0;
@@ -201,10 +201,10 @@ export default function ScorecardGenerator({
     }
     .cut-line {
       border: none;
-      height: 20px;
+      height: 12px;
       text-align: center;
       vertical-align: middle;
-      font-size: 16px;
+      font-size: 12px;
       color: #999;
       position: relative;
     }
@@ -219,14 +219,14 @@ export default function ScorecardGenerator({
     }
     .cut-line span {
       background: white;
-      padding: 0 10px;
+      padding: 0 5px;
       position: relative;
       z-index: 1;
     }
     .footer {
-      margin-top: 20px;
+      margin-top: 5px;
       text-align: center;
-      font-size: 9px;
+      font-size: 7px;
       color: #666;
     }
     .footer a {
@@ -292,8 +292,8 @@ export default function ScorecardGenerator({
     </tbody>
   </table>
 
-  <div style="margin-top: 15px; font-size: 9px; color: #666;">
-    <p><strong>Instructions :</strong> La ligne centrale indique où le joueur avec le plus petit index reçoit un coup (1 = coup rendu)</p>
+  <div style="margin-top: 3px; font-size: 7px; color: #666;">
+    <strong>Instructions :</strong> La ligne centrale indique où le joueur avec le plus petit index reçoit un coup (1 = coup rendu)
   </div>
 
   <div class="footer">
