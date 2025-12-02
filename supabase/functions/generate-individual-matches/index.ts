@@ -17,7 +17,7 @@ function calculateStrokesGiven(handicap1: number, handicap2: number, isFoursome:
   const roundedHandicap2 = Math.round(handicap2);
   const diff = Math.abs(roundedHandicap1 - roundedHandicap2);
   const multiplier = isFoursome ? 0.375 : 0.75;
-  const strokes = Math.floor(diff * multiplier);
+  const strokes = Math.round(diff * multiplier);
   const receiver = handicap1 > handicap2 ? 1 : 2;
   return { strokes, receiver };
 }
