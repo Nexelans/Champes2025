@@ -12,11 +12,12 @@ interface PlayerSelection {
   handicap_index: number;
 }
 
-function calculateStrokesGiven(handicap1: number, handicap2: number): { strokes: number, receiver: 1 | 2 } {
+function calculateStrokesGiven(handicap1: number, handicap2: number, isFoursome: boolean = false): { strokes: number, receiver: 1 | 2 } {
   const roundedHandicap1 = Math.round(handicap1);
   const roundedHandicap2 = Math.round(handicap2);
   const diff = Math.abs(roundedHandicap1 - roundedHandicap2);
-  const strokes = Math.floor(diff * 0.75);
+  const multiplier = isFoursome ? 0.375 : 0.75;
+  const strokes = Math.floor(diff * multiplier);
   const receiver = handicap1 > handicap2 ? 1 : 2;
   return { strokes, receiver };
 }
@@ -115,10 +116,15 @@ Deno.serve(async (req: Request) => {
         const team2Player1 = team2Selections[i * 2];
         const team2Player2 = team2Selections[i * 2 + 1];
 
-        const team1AvgHandicap = ((team1Player1.players as any).handicap_index + (team1Player2.players as any).handicap_index) / 2;
-        const team2AvgHandicap = ((team2Player1.players as any).handicap_index + (team2Player2.players as any).handicap_index) / 2;
+        const team1Player1Handicap = (team1Player1.players as any).handicap_index;
+        const team1Player2Handicap = (team1Player2.players as any).handicap_index;
+        const team2Player1Handicap = (team2Player1.players as any).handicap_index;
+        const team2Player2Handicap = (team2Player2.players as any).handicap_index;
 
-        const strokeInfo = calculateStrokesGiven(team1AvgHandicap, team2AvgHandicap);
+        const team1RoundedAvg = (Math.round(team1Player1Handicap) + Math.round(team1Player2Handicap)) / 2;
+        const team2RoundedAvg = (Math.round(team2Player1Handicap) + Math.round(team2Player2Handicap)) / 2;
+
+        const strokeInfo = calculateStrokesGiven(team1RoundedAvg, team2RoundedAvg, true);
         const scoreDetail = strokeInfo.strokes > 0
           ? `${strokeInfo.strokes} coup${strokeInfo.strokes > 1 ? 's' : ''} rendu${strokeInfo.strokes > 1 ? 's' : ''} à l'équipe ${strokeInfo.receiver}`
           : 'Égalité de handicap';
@@ -130,8 +136,8 @@ Deno.serve(async (req: Request) => {
           team1_player2_id: team1Player2.player_id,
           team2_player_id: team2Player1.player_id,
           team2_player2_id: team2Player2.player_id,
-          team1_handicap: team1AvgHandicap,
-          team2_handicap: team2AvgHandicap,
+          team1_handicap: team1RoundedAvg,
+          team2_handicap: team2RoundedAvg,
           strokes_given: strokeInfo.strokes,
           strokes_receiver: strokeInfo.strokes > 0 ? strokeInfo.receiver : null,
           result: null,
