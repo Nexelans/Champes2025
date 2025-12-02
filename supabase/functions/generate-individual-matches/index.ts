@@ -13,8 +13,10 @@ interface PlayerSelection {
 }
 
 function calculateStrokesGiven(handicap1: number, handicap2: number): { strokes: number, receiver: 1 | 2 } {
-  const diff = Math.abs(handicap1 - handicap2);
-  const strokes = Math.round(diff * 0.9);
+  const roundedHandicap1 = Math.round(handicap1);
+  const roundedHandicap2 = Math.round(handicap2);
+  const diff = Math.abs(roundedHandicap1 - roundedHandicap2);
+  const strokes = Math.floor(diff * 0.75);
   const receiver = handicap1 > handicap2 ? 1 : 2;
   return { strokes, receiver };
 }
