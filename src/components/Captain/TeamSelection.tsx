@@ -47,7 +47,6 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [daysBeforeLock, setDaysBeforeLock] = useState(3);
   const [showScratchDialog, setShowScratchDialog] = useState(false);
   const [scratchMessage, setScratchMessage] = useState('');
   const [reportingScratch, setReportingScratch] = useState(false);
@@ -56,7 +55,6 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
   useEffect(() => {
     loadMatches();
     loadPlayers();
-    loadSeasonConfig();
   }, [captain]);
 
   useEffect(() => {
@@ -81,22 +79,6 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
       setHasAcknowledgedScratch(!!data);
     } catch (err) {
       console.error('Error checking scratch notification:', err);
-    }
-  };
-
-  const loadSeasonConfig = async () => {
-    try {
-      const { data: seasonData } = await supabase
-        .from('seasons')
-        .select('days_before_match_lock')
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (seasonData) {
-        setDaysBeforeLock(seasonData.days_before_match_lock || 3);
-      }
-    } catch (err) {
-      console.error('Error loading season config:', err);
     }
   };
 
@@ -203,14 +185,30 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
     }
   };
 
-  const isMatchLocked = (matchDate: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const getLockDeadline = (matchDate: string) => {
     const match = new Date(matchDate);
-    match.setHours(0, 0, 0, 0);
-    const lockDate = new Date(match);
-    lockDate.setDate(lockDate.getDate() - daysBeforeLock);
-    return today >= lockDate;
+    const matchDay = match.getDay();
+
+    let daysToSubtract;
+    if (matchDay === 0) {
+      daysToSubtract = 2;
+    } else if (matchDay === 6) {
+      daysToSubtract = 1;
+    } else {
+      daysToSubtract = matchDay + 2;
+    }
+
+    const lockDeadline = new Date(match);
+    lockDeadline.setDate(lockDeadline.getDate() - daysToSubtract);
+    lockDeadline.setHours(17, 0, 0, 0);
+
+    return lockDeadline;
+  };
+
+  const isMatchLocked = (matchDate: string) => {
+    const now = new Date();
+    const lockDeadline = getLockDeadline(matchDate);
+    return now >= lockDeadline;
   };
 
   const getMaxPlayers = (match: Match) => {
@@ -222,16 +220,17 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
     return !isMatchLocked(selectedMatch.match_date) || hasAcknowledgedScratch;
   };
 
+  const getHoursUntilLock = (matchDate: string) => {
+    const now = new Date();
+    const lockDeadline = getLockDeadline(matchDate);
+    const diffTime = lockDeadline.getTime() - now.getTime();
+    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+    return diffHours;
+  };
+
   const getDaysUntilLock = (matchDate: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const match = new Date(matchDate);
-    match.setHours(0, 0, 0, 0);
-    const lockDate = new Date(match);
-    lockDate.setDate(lockDate.getDate() - daysBeforeLock);
-    const diffTime = lockDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    const hours = getHoursUntilLock(matchDate);
+    return Math.ceil(hours / 24);
   };
 
   const togglePlayerSelection = (playerId: string) => {
@@ -424,7 +423,9 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
                 {locked ? (
                   <p className="text-xs text-red-600 mt-2">Sélection verrouillée</p>
                 ) : daysUntil <= 7 && daysUntil > 0 ? (
-                  <p className="text-xs text-amber-600 mt-2">Verrouillage dans {daysUntil} jour{daysUntil > 1 ? 's' : ''}</p>
+                  <p className="text-xs text-amber-600 mt-2">
+                    Verrouillage vendredi {getLockDeadline(match.match_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à 17h
+                  </p>
                 ) : null}
               </button>
             );
@@ -456,7 +457,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start space-x-2">
                 <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-amber-800">
-                  La sélection est verrouillée {daysBeforeLock} jour{daysBeforeLock > 1 ? 's' : ''} avant la rencontre.
+                  La sélection est verrouillée le vendredi 17h avant la rencontre.
                 </p>
               </div>
               <button
@@ -478,11 +479,11 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
             </div>
           )}
 
-          {canModifySelection() && getDaysUntilLock(selectedMatch.match_date) <= 7 && (
+          {canModifySelection() && getDaysUntilLock(selectedMatch.match_date) <= 7 && getDaysUntilLock(selectedMatch.match_date) > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start space-x-2">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-blue-800">
-                La sélection sera verrouillée dans {getDaysUntilLock(selectedMatch.match_date)} jour{getDaysUntilLock(selectedMatch.match_date) > 1 ? 's' : ''}.
+                La sélection sera verrouillée le vendredi {getLockDeadline(selectedMatch.match_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à 17h.
               </p>
             </div>
           )}
