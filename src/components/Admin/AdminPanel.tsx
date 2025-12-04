@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Building2, Users, Settings, Edit, MapPin, Shield, Database } from 'lucide-react';
+import { Building2, Users, Settings, Edit, MapPin, Shield, Database, ClipboardList } from 'lucide-react';
 import ClubManagement from './ClubManagement';
 import TeamManagement from './TeamManagement';
 import ConfigurationValidation from './ConfigurationValidation';
 import CalendarEditor from './CalendarEditor';
 import CourseManagement from './CourseManagement';
 import DatabaseBackup from './DatabaseBackup';
+import ResultsEntry from '../ResultsEntry';
 
-type AdminSection = 'clubs' | 'captains' | 'calendar' | 'courses' | 'validation' | 'backup';
+type AdminSection = 'clubs' | 'captains' | 'calendar' | 'courses' | 'validation' | 'backup' | 'results';
 
 interface AdminPanelProps {
   division: 'champe1' | 'champe2';
@@ -21,6 +22,7 @@ export default function AdminPanel({ division }: AdminPanelProps) {
     { id: 'captains' as AdminSection, label: 'Capitaines', icon: Users },
     { id: 'calendar' as AdminSection, label: 'Calendrier', icon: Edit },
     { id: 'courses' as AdminSection, label: 'Parcours', icon: MapPin },
+    { id: 'results' as AdminSection, label: 'Résultats', icon: ClipboardList },
     { id: 'validation' as AdminSection, label: 'Validation', icon: Shield },
     { id: 'backup' as AdminSection, label: 'Sauvegarde', icon: Database },
   ];
@@ -58,6 +60,7 @@ export default function AdminPanel({ division }: AdminPanelProps) {
           {activeSection === 'captains' && <TeamManagement />}
           {activeSection === 'calendar' && <CalendarEditor division={division} />}
           {activeSection === 'courses' && <CourseManagement />}
+          {activeSection === 'results' && <ResultsEntry />}
           {activeSection === 'validation' && <ConfigurationValidation />}
           {activeSection === 'backup' && <DatabaseBackup />}
         </div>
