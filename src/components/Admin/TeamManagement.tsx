@@ -141,7 +141,7 @@ export default function TeamManagement() {
           .from('captains')
           .select('email, user_id')
           .eq('id', editingCaptain)
-          .single();
+          .maybeSingle();
 
         const emailChanged = oldCaptainData && oldCaptainData.email !== formData.email;
 
@@ -339,7 +339,7 @@ export default function TeamManagement() {
         .from('captains')
         .select('user_id')
         .eq('id', captain.id)
-        .single();
+        .maybeSingle();
 
       if (!captainData?.user_id) {
         setMessage({ type: 'error', text: 'Utilisateur non trouvé' });

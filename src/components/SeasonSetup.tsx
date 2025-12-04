@@ -278,9 +278,10 @@ export default function SeasonSetup({ division }: SeasonSetupProps) {
           is_active: true,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!newSeason) throw new Error('Erreur lors de la création de la saison');
 
       setSeason(newSeason);
       setShowNewSeasonForm(false);

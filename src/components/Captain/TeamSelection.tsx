@@ -88,9 +88,12 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
         .from('seasons')
         .select('id')
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
-      if (!seasonData) return;
+      if (!seasonData) {
+        setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('matches')
