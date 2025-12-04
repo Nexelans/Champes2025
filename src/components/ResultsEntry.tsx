@@ -13,6 +13,7 @@ interface Match {
   team2_club: string;
   host_club_id: string;
   is_host: boolean;
+  division: string;
 }
 
 interface IndividualMatch {
@@ -33,7 +34,7 @@ interface IndividualMatch {
 }
 
 export default function ResultsEntry() {
-  const { captain } = useAuth();
+  const { captain, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -43,10 +44,10 @@ export default function ResultsEntry() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (captain) {
+    if (captain || isAdmin) {
       loadMatches();
     }
-  }, [captain]);
+  }, [captain, isAdmin]);
 
   useEffect(() => {
     if (selectedMatch) {
@@ -68,7 +69,7 @@ export default function ResultsEntry() {
         return;
       }
 
-      const { data: matchesData, error: matchesError } = await supabase
+      let query = supabase
         .from('matches')
         .select(`
           id,
@@ -77,15 +78,22 @@ export default function ResultsEntry() {
           team1_id,
           team2_id,
           host_club_id,
+          division,
           team1:teams!matches_team1_id_fkey(club:clubs(name)),
           team2:teams!matches_team2_id_fkey(club:clubs(name))
         `)
         .eq('season_id', seasonData.id)
-        .eq('division', captain!.division)
-        .eq('host_club_id', captain!.club_id)
-        .lte('round_number', 5)
-        .order('round_number')
-        .order('match_date');
+        .lte('round_number', 5);
+
+      if (!isAdmin && captain) {
+        query = query
+          .eq('division', captain.division)
+          .eq('host_club_id', captain.club_id);
+      }
+
+      query = query.order('division').order('round_number').order('match_date');
+
+      const { data: matchesData, error: matchesError } = await query;
 
       if (matchesError) throw matchesError;
 
@@ -98,7 +106,8 @@ export default function ResultsEntry() {
         team1_club: m.team1?.club?.name || 'Inconnu',
         team2_club: m.team2?.club?.name || 'Inconnu',
         host_club_id: m.host_club_id,
-        is_host: m.host_club_id === captain!.club_id,
+        is_host: captain ? m.host_club_id === captain.club_id : true,
+        division: m.division,
       }));
 
       setMatches(formatted);
@@ -277,11 +286,24 @@ export default function ResultsEntry() {
       )}
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">Sélectionner une rencontre</h3>
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">
+          {isAdmin ? 'Sélectionner une rencontre' : 'Sélectionner une rencontre à domicile'}
+        </h3>
+
+        {isAdmin && matches.length > 0 && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              En tant qu'administrateur, vous pouvez saisir ou corriger les résultats de tous les matchs.
+            </p>
+          </div>
+        )}
 
         {matches.length === 0 ? (
           <p className="text-slate-600 text-center py-8">
-            Aucune rencontre à domicile trouvée. Seuls les capitaines qui reçoivent peuvent saisir les résultats.
+            {isAdmin
+              ? 'Aucune rencontre trouvée pour cette saison.'
+              : 'Aucune rencontre à domicile trouvée. Seuls les capitaines qui reçoivent peuvent saisir les résultats.'
+            }
           </p>
         ) : (
           <div className="space-y-2">
@@ -296,10 +318,17 @@ export default function ResultsEntry() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">
-                      Journée {match.round_number}
-                    </p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-slate-700">
+                        Journée {match.round_number}
+                      </p>
+                      {isAdmin && (
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                          {match.division === 'champe1' ? 'Champe 1' : 'Champe 2'}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-600 mt-1">{formatDate(match.match_date)}</p>
                     <p className="font-semibold text-slate-900 mt-2">
                       {match.team1_club} vs {match.team2_club}
