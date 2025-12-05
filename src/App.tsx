@@ -220,7 +220,7 @@ function App() {
           <div className="text-center text-sm text-slate-500">
             2025, site réalisé par{' '}
             <a
-              href="https://nexelans.fr"
+              href="https://www.nexelans.fr"
               target="_blank"
               rel="noopener noreferrer"
               className="text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
