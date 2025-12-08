@@ -285,7 +285,7 @@ export default function ResultsEntry() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+      <div className="bg-white rounded-xl shadow-md border border-slate-200 p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-4">
           {isAdmin ? 'Sélectionner une rencontre' : 'Sélectionner une rencontre à domicile'}
         </h3>
@@ -306,32 +306,38 @@ export default function ResultsEntry() {
             }
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {matches.map((match) => (
               <button
                 key={match.id}
                 onClick={() => setSelectedMatch(match)}
-                className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                className={`w-full p-5 rounded-xl border-2 text-left transition-all shadow-sm ${
                   selectedMatch?.id === match.id
-                    ? 'border-emerald-500 bg-emerald-50'
-                    : 'border-slate-200 hover:border-emerald-300 hover:bg-slate-50'
+                    ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                    : 'border-slate-200 hover:border-emerald-300 hover:bg-slate-50 active:bg-slate-100'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-slate-700">
-                        Journée {match.round_number}
-                      </p>
+                      <div className="px-3 py-1 bg-emerald-600 text-white text-sm font-bold rounded-lg">
+                        J{match.round_number}
+                      </div>
                       {isAdmin && (
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-md">
                           {match.division === 'champe1' ? 'Champe 1' : 'Champe 2'}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-600 mt-1">{formatDate(match.match_date)}</p>
-                    <p className="font-semibold text-slate-900 mt-2">
-                      {match.team1_club} vs {match.team2_club}
+                    <p className="text-sm text-slate-600 font-medium">{formatDate(match.match_date)}</p>
+                  </div>
+                  <div className="pt-1">
+                    <p className="text-base font-bold text-slate-900 leading-tight">
+                      {match.team1_club}
+                    </p>
+                    <p className="text-slate-500 text-sm my-1">contre</p>
+                    <p className="text-base font-bold text-slate-900 leading-tight">
+                      {match.team2_club}
                     </p>
                   </div>
                 </div>
@@ -342,81 +348,139 @@ export default function ResultsEntry() {
       </div>
 
       {selectedMatch && individualMatches.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-6">
-          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold">{selectedMatch.team1_club}</h3>
-                <p className="text-emerald-100 text-sm">Domicile</p>
+        <div className="bg-white rounded-xl shadow-md border border-slate-200 p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex-1 text-center sm:text-left">
+                <h3 className="text-lg sm:text-xl font-bold leading-tight">{selectedMatch.team1_club}</h3>
+                <p className="text-emerald-100 text-xs sm:text-sm mt-1">Domicile</p>
               </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold">
+              <div className="text-center px-4">
+                <div className="text-5xl sm:text-6xl font-bold tracking-tight">
                   {totals.team1Total} - {totals.team2Total}
                 </div>
-                <p className="text-emerald-100 text-sm mt-1">Points</p>
+                <p className="text-emerald-100 text-xs sm:text-sm mt-2 font-medium">Points totaux</p>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-right">{selectedMatch.team2_club}</h3>
-                <p className="text-emerald-100 text-sm text-right">Extérieur</p>
+              <div className="flex-1 text-center sm:text-right">
+                <h3 className="text-lg sm:text-xl font-bold leading-tight">{selectedMatch.team2_club}</h3>
+                <p className="text-emerald-100 text-xs sm:text-sm mt-1">Extérieur</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start space-x-2">
-            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">Instructions</p>
-              <p>
-                Saisissez le résultat de chaque match. Un match gagné = 2 points, match nul = 1 point chacun.
-                Le score détaillé (ex: 7&6, tie) est optionnel.
-              </p>
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-800 space-y-1">
+                <p className="font-semibold">Mode d'emploi</p>
+                <p className="text-xs sm:text-sm">
+                  Cliquez sur le résultat de chaque match. Victoire = 2 pts, nul = 1 pt chacun.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {individualMatches.map((im) => (
               <div
                 key={im.id}
-                className="p-4 bg-slate-50 rounded-lg border border-slate-200"
+                className="bg-white rounded-xl border-2 border-slate-200 overflow-hidden shadow-sm"
               >
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-emerald-600 text-white rounded-full font-bold text-sm">
-                    {im.match_order}
+                <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-4 py-3 border-b border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-10 h-10 bg-emerald-600 text-white rounded-full font-bold text-base">
+                      {im.match_order}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">
+                        Match {im.match_order}
+                      </p>
+                      {im.strokes_given !== undefined && im.strokes_given > 0 && (
+                        <p className="text-xs font-medium text-blue-600 mt-0.5">
+                          {im.strokes_given} coup{im.strokes_given > 1 ? 's' : ''} rendu{im.strokes_given > 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 grid grid-cols-3 gap-4 items-center">
-                    <div className="text-right">
-                      <p className="font-medium text-slate-900">{im.team1_player_name}</p>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="font-semibold text-slate-900 text-base">{im.team1_player_name}</p>
                       {im.team1_player2_name && (
-                        <p className="font-medium text-slate-900">{im.team1_player2_name}</p>
+                        <p className="font-semibold text-slate-900 text-base">{im.team1_player2_name}</p>
                       )}
                       {im.team1_handicap !== undefined && im.team1_handicap !== null && (
                         <p className="text-xs text-slate-500 mt-1">Index: {im.team1_handicap.toFixed(1)}</p>
                       )}
                     </div>
-                    <div className="text-center text-slate-400 font-semibold">vs</div>
-                    <div>
-                      <p className="font-medium text-slate-900">{im.team2_player_name}</p>
+                    <div className="text-slate-400 font-bold text-lg px-2">VS</div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-slate-900 text-base">{im.team2_player_name}</p>
                       {im.team2_player2_name && (
-                        <p className="font-medium text-slate-900">{im.team2_player2_name}</p>
+                        <p className="font-semibold text-slate-900 text-base">{im.team2_player2_name}</p>
                       )}
                       {im.team2_handicap !== undefined && im.team2_handicap !== null && (
                         <p className="text-xs text-slate-500 mt-1">Index: {im.team2_handicap.toFixed(1)}</p>
                       )}
                     </div>
                   </div>
-                </div>
 
-                {im.strokes_given !== undefined && im.strokes_given > 0 && (
-                  <div className="mb-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded text-center">
-                    <p className="text-sm font-medium text-blue-800">
-                      {im.strokes_given} coup{im.strokes_given > 1 ? 's' : ''} rendu{im.strokes_given > 1 ? 's' : ''} {im.strokes_receiver === 1 ? `à ${im.team1_player_name}` : `à ${im.team2_player_name}`}
-                    </p>
+                  <div className="pt-3 border-t border-slate-200">
+                    <label className="block text-sm font-semibold text-slate-900 mb-3">
+                      Résultat du match
+                    </label>
+                    <div className="grid grid-cols-1 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateIndividualMatch(im.id, 'result', 'team1_win')}
+                        className={`px-4 py-3 rounded-lg font-medium transition-all text-left ${
+                          im.result === 'team1_win'
+                            ? 'bg-emerald-600 text-white shadow-md'
+                            : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{selectedMatch.team1_club} gagne</span>
+                          <span className="font-bold">2 pts</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => updateIndividualMatch(im.id, 'result', 'draw')}
+                        className={`px-4 py-3 rounded-lg font-medium transition-all text-left ${
+                          im.result === 'draw'
+                            ? 'bg-amber-500 text-white shadow-md'
+                            : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Match nul</span>
+                          <span className="font-bold">1 pt chacun</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => updateIndividualMatch(im.id, 'result', 'team2_win')}
+                        className={`px-4 py-3 rounded-lg font-medium transition-all text-left ${
+                          im.result === 'team2_win'
+                            ? 'bg-emerald-600 text-white shadow-md'
+                            : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{selectedMatch.team2_club} gagne</span>
+                          <span className="font-bold">2 pts</span>
+                        </div>
+                      </button>
+                    </div>
                   </div>
-                )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
                       Score détaillé (optionnel)
                     </label>
                     <input
@@ -424,43 +488,27 @@ export default function ResultsEntry() {
                       value={im.score_detail || ''}
                       onChange={(e) => updateIndividualMatch(im.id, 'score_detail', e.target.value)}
                       placeholder="Ex: 7&6, tie, 6&4"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-base"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Résultat *
-                    </label>
-                    <select
-                      value={im.result || ''}
-                      onChange={(e) => updateIndividualMatch(im.id, 'result', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
-                    >
-                      <option value="">Sélectionner</option>
-                      <option value="team1_win">{selectedMatch.team1_club} gagne (2 pts)</option>
-                      <option value="draw">Match nul (1 pt chacun)</option>
-                      <option value="team2_win">{selectedMatch.team2_club} gagne (2 pts)</option>
-                    </select>
                   </div>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
+          <div className="flex flex-col sm:flex-row gap-3 pt-6">
             <button
               onClick={() => loadIndividualMatches()}
-              className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+              className="flex-1 sm:flex-none px-6 py-4 border-2 border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium text-base"
             >
-              Annuler les modifications
+              Annuler
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-8 py-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-base shadow-md"
             >
-              <Save className="w-4 h-4" />
+              <Save className="w-5 h-5" />
               <span>{saving ? 'Enregistrement...' : 'Enregistrer les résultats'}</span>
             </button>
           </div>
