@@ -225,6 +225,16 @@ export default function MatchesView({ division }: MatchesViewProps) {
   const roundMatches = matches.filter(m => m.round_number === selectedRound);
   const selectedMatchData = matches.find(m => m.id === selectedMatch);
 
+  const getResultsDeadline = (matchDate: string) => {
+    const date = new Date(matchDate);
+    date.setDate(date.getDate() + 7);
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -232,6 +242,21 @@ export default function MatchesView({ division }: MatchesViewProps) {
           Rencontres {divisionLabel}
         </h2>
       </div>
+
+      {selectedMatchData && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-900">
+              <p className="font-semibold">Information importante</p>
+              <p className="mt-1">
+                Les informations affichées sont provisoires jusqu'à la date limite de saisie des résultats
+                par les capitaines : <span className="font-bold">{getResultsDeadline(selectedMatchData.match_date)}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <div className="space-y-6">
