@@ -173,7 +173,7 @@ export default function ResultsEntry() {
     }
   };
 
-  const updateIndividualMatch = (id: string, field: 'result' | 'score_detail' | 'starting_hole', value: string | number) => {
+  const updateIndividualMatch = (id: string, field: 'result' | 'score_detail' | 'starting_hole', value: string | number | null) => {
     setIndividualMatches(prev =>
       prev.map(im => {
         if (im.id === id) {
@@ -189,6 +189,9 @@ export default function ResultsEntry() {
             } else if (value === 'draw') {
               updated.team1_points = 1;
               updated.team2_points = 1;
+            } else if (value === null) {
+              updated.team1_points = 0;
+              updated.team2_points = 0;
             }
           }
 
@@ -480,6 +483,16 @@ export default function ResultsEntry() {
                           <span className="font-bold">2 pts</span>
                         </div>
                       </button>
+
+                      {im.result && (
+                        <button
+                          type="button"
+                          onClick={() => updateIndividualMatch(im.id, 'result', null)}
+                          className="px-4 py-3 rounded-lg font-medium transition-all text-center bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                        >
+                          Effacer le résultat
+                        </button>
+                      )}
                     </div>
                   </div>
 
