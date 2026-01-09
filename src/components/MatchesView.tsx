@@ -268,7 +268,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
             <div className="text-sm text-amber-900">
               <p className="font-semibold">Information importante</p>
               <p className="mt-1">
-                Les informations affichées sont provisoires jusqu'à la date limite de saisie des résultats
+                Les informations affichées sont provisoires jusqu'à la date limite de sélection des joueurs
                 par les capitaines : <span className="font-bold">
                   vendredi {getLockDeadline(selectedMatchData.match_date).toLocaleDateString('fr-FR', {
                     day: '2-digit',
