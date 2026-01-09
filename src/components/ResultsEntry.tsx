@@ -210,7 +210,7 @@ export default function ResultsEntry() {
 
     try {
       for (const im of individualMatches) {
-        const { error: updateError } = await supabase
+        const { error: updateError, data } = await supabase
           .from('individual_matches')
           .update({
             result: im.result,
@@ -219,30 +219,50 @@ export default function ResultsEntry() {
             team1_points: im.team1_points,
             team2_points: im.team2_points,
           })
-          .eq('id', im.id);
+          .eq('id', im.id)
+          .select();
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Error updating individual match:', updateError);
+          throw new Error(`Impossible de mettre à jour le match individuel: ${updateError.message}`);
+        }
+
+        if (!data || data.length === 0) {
+          throw new Error('Vous n\'avez pas les permissions nécessaires pour modifier ce match');
+        }
       }
 
       const team1Total = individualMatches.reduce((sum, im) => sum + im.team1_points, 0);
       const team2Total = individualMatches.reduce((sum, im) => sum + im.team2_points, 0);
 
-      const { error: matchUpdateError } = await supabase
+      const { error: matchUpdateError, data: matchData } = await supabase
         .from('matches')
         .update({
           team1_points: team1Total,
           team2_points: team2Total,
           status: 'completed',
         })
-        .eq('id', selectedMatch.id);
+        .eq('id', selectedMatch.id)
+        .select();
 
-      if (matchUpdateError) throw matchUpdateError;
+      if (matchUpdateError) {
+        console.error('Error updating match:', matchUpdateError);
+        throw new Error(`Impossible de mettre à jour le match: ${matchUpdateError.message}`);
+      }
+
+      if (!matchData || matchData.length === 0) {
+        throw new Error('Vous n\'avez pas les permissions nécessaires pour finaliser ce match');
+      }
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       console.error('Error saving results:', err);
-      setError('Erreur lors de l\'enregistrement des résultats');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Erreur lors de l\'enregistrement des résultats');
+      }
     } finally {
       setSaving(false);
     }
