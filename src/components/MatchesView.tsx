@@ -30,6 +30,7 @@ type IndividualMatch = {
   strokes_given?: number;
   strokes_receiver?: number;
   result: string | null;
+  starting_hole: number | null;
   team1_points: number;
   team2_points: number;
 };
@@ -131,6 +132,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
         .select(`
           match_order,
           result,
+          starting_hole,
           team1_points,
           team2_points,
           team1_handicap,
@@ -163,6 +165,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
             ? `${im.team2_player2.first_name} ${im.team2_player2.last_name}`
             : undefined,
           result: im.result,
+          starting_hole: im.starting_hole,
           team1_points: im.team1_points || 0,
           team2_points: im.team2_points || 0,
         }));
@@ -345,8 +348,15 @@ export default function MatchesView({ division }: MatchesViewProps) {
                       className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
                     >
                       <div className="flex items-center gap-4 flex-1">
-                        <div className="flex items-center justify-center w-8 h-8 bg-emerald-600 text-white rounded-full font-bold text-sm">
-                          {im.match_order}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center w-8 h-8 bg-emerald-600 text-white rounded-full font-bold text-sm">
+                            {im.match_order}
+                          </div>
+                          {im.starting_hole && (
+                            <div className="px-3 py-1 bg-emerald-600 text-white rounded-full text-xs font-medium whitespace-nowrap">
+                              Trou de départ : {im.starting_hole}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-4 flex-1">
                           <div className="flex-1 text-right">
