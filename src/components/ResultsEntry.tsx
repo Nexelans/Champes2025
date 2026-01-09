@@ -29,6 +29,7 @@ interface IndividualMatch {
   strokes_receiver?: number;
   result: string | null;
   score_detail: string | null;
+  starting_hole: number | null;
   team1_points: number;
   team2_points: number;
 }
@@ -130,6 +131,7 @@ export default function ResultsEntry() {
           match_order,
           result,
           score_detail,
+          starting_hole,
           team1_points,
           team2_points,
           team1_handicap,
@@ -159,6 +161,7 @@ export default function ResultsEntry() {
         strokes_receiver: im.strokes_receiver,
         result: im.result,
         score_detail: im.score_detail,
+        starting_hole: im.starting_hole,
         team1_points: im.team1_points,
         team2_points: im.team2_points,
       }));
@@ -170,7 +173,7 @@ export default function ResultsEntry() {
     }
   };
 
-  const updateIndividualMatch = (id: string, field: 'result' | 'score_detail', value: string) => {
+  const updateIndividualMatch = (id: string, field: 'result' | 'score_detail' | 'starting_hole', value: string | number) => {
     setIndividualMatches(prev =>
       prev.map(im => {
         if (im.id === id) {
@@ -209,6 +212,7 @@ export default function ResultsEntry() {
           .update({
             result: im.result,
             score_detail: im.score_detail,
+            starting_hole: im.starting_hole,
             team1_points: im.team1_points,
             team2_points: im.team2_points,
           })
@@ -479,17 +483,36 @@ export default function ResultsEntry() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Score détaillé (optionnel)
-                    </label>
-                    <input
-                      type="text"
-                      value={im.score_detail || ''}
-                      onChange={(e) => updateIndividualMatch(im.id, 'score_detail', e.target.value)}
-                      placeholder="Ex: 7&6, tie, 6&4"
-                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-base"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Score détaillé (optionnel)
+                      </label>
+                      <input
+                        type="text"
+                        value={im.score_detail || ''}
+                        onChange={(e) => updateIndividualMatch(im.id, 'score_detail', e.target.value)}
+                        placeholder="Ex: 7&6, tie, 6&4"
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Trou de départ (shotgun)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="18"
+                        value={im.starting_hole || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          updateIndividualMatch(im.id, 'starting_hole', value ? parseInt(value) : null);
+                        }}
+                        placeholder="1-18"
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-base"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

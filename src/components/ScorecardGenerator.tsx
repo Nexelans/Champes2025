@@ -16,6 +16,7 @@ interface IndividualMatch {
   team2_handicap: number;
   strokes_given: number;
   strokes_receiver: number | null;
+  starting_hole: number | null;
 }
 
 interface ScorecardGeneratorProps {
@@ -262,15 +263,18 @@ export default function ScorecardGenerator({
           ? calculateStrokeHoles(strokeIndexes, match.strokes_given)
           : [];
 
+        const startingHoleText = match.starting_hole ? ` - Départ trou ${match.starting_hole}` : '';
+
         return `
       ${idx > 0 ? '<tr><td colspan="20" class="cut-line"><span>✂</span></td></tr>' : ''}
+      ${match.starting_hole ? `<tr><td colspan="20" style="text-align: center; background-color: #fff3cd; font-weight: bold; padding: 4px; font-size: 9px;">🏌️ DÉPART SHOTGUN - TROU ${match.starting_hole}</td></tr>` : ''}
       <tr>
         <th>Trou</th>
         ${Array.from({ length: 18 }, (_, i) => `<th>${i + 1}</th>`).join('')}
         <th>Total</th>
       </tr>
       <tr>
-        <td class="player-row">${match.match_order}. ${player1.first_name} ${player1.last_name} (${team1.substring(0, 15)}) - Index ${player1.handicap_index}</td>
+        <td class="player-row">${match.match_order}. ${player1.first_name} ${player1.last_name} (${team1.substring(0, 15)}) - Index ${player1.handicap_index}${startingHoleText}</td>
         ${Array.from({ length: 18 }, (_, i) => `<td></td>`).join('')}
         <td></td>
       </tr>
