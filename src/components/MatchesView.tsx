@@ -225,15 +225,33 @@ export default function MatchesView({ division }: MatchesViewProps) {
   const roundMatches = matches.filter(m => m.round_number === selectedRound);
   const selectedMatchData = matches.find(m => m.id === selectedMatch);
 
-  const getResultsDeadline = (matchDate: string) => {
-    const date = new Date(matchDate);
-    date.setDate(date.getDate() + 7);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+  const getLockDeadline = (matchDate: string) => {
+    const match = new Date(matchDate);
+    const matchDay = match.getDay();
+
+    let daysToSubtract;
+    if (matchDay === 0) {
+      daysToSubtract = 2;
+    } else if (matchDay === 6) {
+      daysToSubtract = 1;
+    } else {
+      daysToSubtract = matchDay + 2;
+    }
+
+    const lockDeadline = new Date(match);
+    lockDeadline.setDate(lockDeadline.getDate() - daysToSubtract);
+    lockDeadline.setHours(17, 0, 0, 0);
+
+    return lockDeadline;
   };
+
+  const isMatchLocked = (matchDate: string) => {
+    const now = new Date();
+    const lockDeadline = getLockDeadline(matchDate);
+    return now >= lockDeadline;
+  };
+
+  const shouldShowDisclaimer = selectedMatchData && !isMatchLocked(selectedMatchData.match_date);
 
   return (
     <div className="space-y-6">
@@ -243,7 +261,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
         </h2>
       </div>
 
-      {selectedMatchData && (
+      {shouldShowDisclaimer && (
         <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -251,7 +269,12 @@ export default function MatchesView({ division }: MatchesViewProps) {
               <p className="font-semibold">Information importante</p>
               <p className="mt-1">
                 Les informations affichées sont provisoires jusqu'à la date limite de saisie des résultats
-                par les capitaines : <span className="font-bold">{getResultsDeadline(selectedMatchData.match_date)}</span>
+                par les capitaines : <span className="font-bold">
+                  vendredi {getLockDeadline(selectedMatchData.match_date).toLocaleDateString('fr-FR', {
+                    day: '2-digit',
+                    month: '2-digit'
+                  })} à 17h
+                </span>
               </p>
             </div>
           </div>
