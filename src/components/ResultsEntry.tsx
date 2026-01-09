@@ -500,18 +500,21 @@ export default function ResultsEntry() {
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         Trou de départ (shotgun)
                       </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="18"
+                      <select
                         value={im.starting_hole || ''}
                         onChange={(e) => {
                           const value = e.target.value;
                           updateIndividualMatch(im.id, 'starting_hole', value ? parseInt(value) : null);
                         }}
-                        placeholder="1-18"
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-base bg-white"
+                      >
+                        <option value="">Sélectionner un trou</option>
+                        {Array.from({ length: 18 }, (_, i) => i + 1).map((hole) => (
+                          <option key={hole} value={hole}>
+                            Trou {hole}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
