@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MapPin, Loader2, AlertCircle, Save, Check } from 'lucide-react';
+import { MapPin, Loader2, AlertCircle, Save, Check, Unlock, Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 type Team = {
@@ -16,6 +16,7 @@ type Match = {
   team2_id: string;
   host_club_id: string;
   host_club_name: string;
+  selection_unlocked_until: string | null;
 };
 
 type CalendarEditorProps = {
@@ -30,6 +31,7 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
   const [seasonId, setSeasonId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [unlockingMatchIds, setUnlockingMatchIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadData();
@@ -78,6 +80,7 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
           team1_id,
           team2_id,
           host_club_id,
+          selection_unlocked_until,
           team1:teams!matches_team1_id_fkey(club:clubs(name)),
           team2:teams!matches_team2_id_fkey(club:clubs(name)),
           host_club:clubs(name)
@@ -98,6 +101,7 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
             team2_id: m.team2_id,
             host_club_id: m.host_club_id,
             host_club_name: m.host_club?.name || 'À définir',
+            selection_unlocked_until: m.selection_unlocked_until,
           }))
         );
       }
@@ -163,6 +167,53 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleSelectionUnlock = async (matchId: string, currentUnlockDate: string | null) => {
+    setUnlockingMatchIds(prev => new Set(prev).add(matchId));
+    try {
+      let newUnlockDate = null;
+
+      if (!currentUnlockDate) {
+        // Set unlock to 7 days from now
+        const unlockUntil = new Date();
+        unlockUntil.setDate(unlockUntil.getDate() + 7);
+        newUnlockDate = unlockUntil.toISOString();
+      }
+
+      const { error } = await supabase
+        .from('matches')
+        .update({ selection_unlocked_until: newUnlockDate })
+        .eq('id', matchId);
+
+      if (error) throw error;
+
+      // Update local state
+      setMatches(prevMatches =>
+        prevMatches.map(m =>
+          m.id === matchId ? { ...m, selection_unlocked_until: newUnlockDate } : m
+        )
+      );
+
+      setMessage({
+        type: 'success',
+        text: newUnlockDate
+          ? 'Sélection déverrouillée pour 7 jours'
+          : 'Sélection verrouillée normalement',
+      });
+    } catch (error) {
+      console.error('Error toggling unlock:', error);
+      setMessage({
+        type: 'error',
+        text: 'Erreur lors du déverrouillage',
+      });
+    } finally {
+      setUnlockingMatchIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(matchId);
+        return newSet;
+      });
     }
   };
 
@@ -272,41 +323,65 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
                 </div>
 
                 <div className="space-y-3">
-                  {roundMatches.map((match, idx) => (
-                    <div
-                      key={match.id}
-                      className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg"
-                    >
-                      <span className="text-sm text-slate-500 font-medium w-8">
-                        #{idx + 1}
-                      </span>
-                      <select
-                        value={match.team1_id}
-                        onChange={(e) => updateMatch(match.id, 'team1_id', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  {roundMatches.map((match, idx) => {
+                    const isUnlocking = unlockingMatchIds.has(match.id);
+                    const isUnlocked = match.selection_unlocked_until &&
+                      new Date(match.selection_unlocked_until) > new Date();
+
+                    return (
+                      <div
+                        key={match.id}
+                        className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg"
                       >
-                        <option value="">Sélectionner une équipe</option>
-                        {teams.map((team) => (
-                          <option key={team.id} value={team.id}>
-                            {team.club_name}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-slate-400 font-semibold">vs</span>
-                      <select
-                        value={match.team2_id}
-                        onChange={(e) => updateMatch(match.id, 'team2_id', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      >
-                        <option value="">Sélectionner une équipe</option>
-                        {teams.map((team) => (
-                          <option key={team.id} value={team.id}>
-                            {team.club_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
+                        <span className="text-sm text-slate-500 font-medium w-8">
+                          #{idx + 1}
+                        </span>
+                        <select
+                          value={match.team1_id}
+                          onChange={(e) => updateMatch(match.id, 'team1_id', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        >
+                          <option value="">Sélectionner une équipe</option>
+                          {teams.map((team) => (
+                            <option key={team.id} value={team.id}>
+                              {team.club_name}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="text-slate-400 font-semibold">vs</span>
+                        <select
+                          value={match.team2_id}
+                          onChange={(e) => updateMatch(match.id, 'team2_id', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        >
+                          <option value="">Sélectionner une équipe</option>
+                          {teams.map((team) => (
+                            <option key={team.id} value={team.id}>
+                              {team.club_name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => toggleSelectionUnlock(match.id, match.selection_unlocked_until)}
+                          disabled={isUnlocking}
+                          className={`p-2 rounded-lg transition-colors ${
+                            isUnlocked
+                              ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                          } disabled:opacity-50`}
+                          title={isUnlocked ? 'Verrouiller la sélection' : 'Déverrouiller la sélection pour 7 jours'}
+                        >
+                          {isUnlocking ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : isUnlocked ? (
+                            <Unlock className="h-4 w-4" />
+                          ) : (
+                            <Lock className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

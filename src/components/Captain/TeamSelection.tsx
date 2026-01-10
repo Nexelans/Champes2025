@@ -22,6 +22,7 @@ interface Match {
   opponent_name: string;
   is_home: boolean;
   is_final: boolean;
+  selection_unlocked_until: string | null;
 }
 
 interface Selection {
@@ -106,6 +107,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
           team2_id,
           host_club_id,
           status,
+          selection_unlocked_until,
           team1:teams!matches_team1_id_fkey(id, club:clubs(name)),
           team2:teams!matches_team2_id_fkey(id, club:clubs(name))
         `)
@@ -133,6 +135,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
           opponent_name: opponentClub?.name || 'Inconnu',
           is_home: match.host_club_id === captain.club_id,
           is_final: false,
+          selection_unlocked_until: match.selection_unlocked_until,
         };
       });
 
@@ -208,8 +211,18 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
     return lockDeadline;
   };
 
-  const isMatchLocked = (matchDate: string) => {
+  const isMatchLocked = (matchDate: string, selectionUnlockedUntil: string | null) => {
     const now = new Date();
+
+    // Check if there's an admin override to unlock
+    if (selectionUnlockedUntil) {
+      const unlockDeadline = new Date(selectionUnlockedUntil);
+      if (now < unlockDeadline) {
+        return false; // Admin has unlocked, selection is allowed
+      }
+    }
+
+    // Otherwise check normal lock deadline
     const lockDeadline = getLockDeadline(matchDate);
     return now >= lockDeadline;
   };
@@ -220,7 +233,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
 
   const canModifySelection = () => {
     if (!selectedMatch) return false;
-    return !isMatchLocked(selectedMatch.match_date) || hasAcknowledgedScratch;
+    return !isMatchLocked(selectedMatch.match_date, selectedMatch.selection_unlocked_until) || hasAcknowledgedScratch;
   };
 
   const getHoursUntilLock = (matchDate: string) => {
@@ -398,7 +411,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Choisir une rencontre</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {matches.map((match) => {
-            const locked = isMatchLocked(match.match_date);
+            const locked = isMatchLocked(match.match_date, match.selection_unlocked_until);
             const daysUntil = getDaysUntilLock(match.match_date);
             return (
               <button
@@ -423,7 +436,11 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
                 <p className="text-sm font-semibold text-slate-900">
                   {match.is_home ? 'Domicile' : 'Extérieur'} vs {match.opponent_name}
                 </p>
-                {locked ? (
+                {match.selection_unlocked_until && new Date(match.selection_unlocked_until) > new Date() ? (
+                  <p className="text-xs text-emerald-600 mt-2 font-medium">
+                    Déverrouillé par l'admin
+                  </p>
+                ) : locked ? (
                   <p className="text-xs text-red-600 mt-2">Sélection verrouillée</p>
                 ) : daysUntil <= 7 && daysUntil > 0 ? (
                   <p className="text-xs text-amber-600 mt-2">
