@@ -107,6 +107,7 @@ export default function AdminTeamSelection() {
           </div>
 
           <TeamSelection
+            key={selectedTeam.id}
             captain={{
               id: 'admin',
               team_id: selectedTeam.id,
