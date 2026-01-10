@@ -61,6 +61,8 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
 
   useEffect(() => {
     if (selectedMatch) {
+      setSelectedPlayers([]);
+      setError(null);
       loadSelections();
       checkScratchNotification();
     }
