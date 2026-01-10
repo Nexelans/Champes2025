@@ -113,6 +113,7 @@ export default function AdminTeamSelection() {
               club_id: selectedTeam.club_id,
               division: selectedTeam.division,
             }}
+            isAdmin={true}
           />
         </div>
       )}

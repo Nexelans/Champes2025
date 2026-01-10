@@ -37,9 +37,10 @@ interface TeamSelectionProps {
     club_id: string;
     division: string;
   };
+  isAdmin?: boolean;
 }
 
-export default function TeamSelection({ captain }: TeamSelectionProps) {
+export default function TeamSelection({ captain, isAdmin = false }: TeamSelectionProps) {
   const [matches, setMatches] = useState<Match[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
@@ -233,6 +234,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
 
   const canModifySelection = () => {
     if (!selectedMatch) return false;
+    if (isAdmin) return true;
     return !isMatchLocked(selectedMatch.match_date, selectedMatch.selection_unlocked_until) || hasAcknowledgedScratch;
   };
 
@@ -417,11 +419,11 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
               <button
                 key={match.id}
                 onClick={() => setSelectedMatch(match)}
-                disabled={locked}
+                disabled={locked && !isAdmin}
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
                   selectedMatch?.id === match.id
                     ? 'border-blue-500 bg-blue-50'
-                    : locked
+                    : (locked && !isAdmin)
                     ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
                     : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
                 }`}
@@ -436,17 +438,21 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
                 <p className="text-sm font-semibold text-slate-900">
                   {match.is_home ? 'Domicile' : 'Extérieur'} vs {match.opponent_name}
                 </p>
-                {match.selection_unlocked_until && new Date(match.selection_unlocked_until) > new Date() ? (
-                  <p className="text-xs text-emerald-600 mt-2 font-medium">
-                    Déverrouillé par l'admin
-                  </p>
-                ) : locked ? (
-                  <p className="text-xs text-red-600 mt-2">Sélection verrouillée</p>
-                ) : daysUntil <= 7 && daysUntil > 0 ? (
-                  <p className="text-xs text-amber-600 mt-2">
-                    Verrouillage vendredi {getLockDeadline(match.match_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à 17h
-                  </p>
-                ) : null}
+                {!isAdmin && (
+                  <>
+                    {match.selection_unlocked_until && new Date(match.selection_unlocked_until) > new Date() ? (
+                      <p className="text-xs text-emerald-600 mt-2 font-medium">
+                        Déverrouillé par l'admin
+                      </p>
+                    ) : locked ? (
+                      <p className="text-xs text-red-600 mt-2">Sélection verrouillée</p>
+                    ) : daysUntil <= 7 && daysUntil > 0 ? (
+                      <p className="text-xs text-amber-600 mt-2">
+                        Verrouillage vendredi {getLockDeadline(match.match_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à 17h
+                      </p>
+                    ) : null}
+                  </>
+                )}
               </button>
             );
           })}
@@ -472,7 +478,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
             </div>
           </div>
 
-          {!canModifySelection() && !hasAcknowledgedScratch && (
+          {!canModifySelection() && !hasAcknowledgedScratch && !isAdmin && (
             <div className="space-y-3">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start space-x-2">
                 <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -499,7 +505,7 @@ export default function TeamSelection({ captain }: TeamSelectionProps) {
             </div>
           )}
 
-          {canModifySelection() && getDaysUntilLock(selectedMatch.match_date) <= 7 && getDaysUntilLock(selectedMatch.match_date) > 0 && (
+          {canModifySelection() && !isAdmin && getDaysUntilLock(selectedMatch.match_date) <= 7 && getDaysUntilLock(selectedMatch.match_date) > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start space-x-2">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-blue-800">
