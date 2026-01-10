@@ -28,6 +28,7 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
   const [saving, setSaving] = useState(false);
   const [teams, setTeams] = useState<Team[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [originalMatches, setOriginalMatches] = useState<Match[]>([]);
   const [seasonId, setSeasonId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -92,18 +93,18 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
         .order('id');
 
       if (matchesData) {
-        setMatches(
-          matchesData.map((m: any) => ({
-            id: m.id,
-            round_number: m.round_number,
-            match_date: m.match_date,
-            team1_id: m.team1_id,
-            team2_id: m.team2_id,
-            host_club_id: m.host_club_id,
-            host_club_name: m.host_club?.name || 'À définir',
-            selection_unlocked_until: m.selection_unlocked_until,
-          }))
-        );
+        const mappedMatches = matchesData.map((m: any) => ({
+          id: m.id,
+          round_number: m.round_number,
+          match_date: m.match_date,
+          team1_id: m.team1_id,
+          team2_id: m.team2_id,
+          host_club_id: m.host_club_id,
+          host_club_name: m.host_club?.name || 'À définir',
+          selection_unlocked_until: m.selection_unlocked_until,
+        }));
+        setMatches(mappedMatches);
+        setOriginalMatches(mappedMatches);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -125,6 +126,9 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
     setSaving(true);
     setMessage(null);
     try {
+      // Find matches where teams have changed
+      const changedMatchIds: string[] = [];
+
       for (const match of matches) {
         if (match.team1_id === match.team2_id) {
           setMessage({
@@ -133,6 +137,14 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
           });
           setSaving(false);
           return;
+        }
+
+        // Check if teams changed
+        const originalMatch = originalMatches.find(m => m.id === match.id);
+        if (originalMatch &&
+            (originalMatch.team1_id !== match.team1_id ||
+             originalMatch.team2_id !== match.team2_id)) {
+          changedMatchIds.push(match.id);
         }
 
         const { error } = await supabase
@@ -146,16 +158,29 @@ export default function CalendarEditor({ division }: CalendarEditorProps) {
         if (error) throw error;
       }
 
-      const { error: deleteIndividualError } = await supabase
-        .from('individual_matches')
-        .delete()
-        .in('match_id', matches.map(m => m.id));
+      // Only delete individual_matches for matches where teams changed
+      if (changedMatchIds.length > 0) {
+        const { error: deleteIndividualError } = await supabase
+          .from('individual_matches')
+          .delete()
+          .in('match_id', changedMatchIds);
 
-      if (deleteIndividualError) throw deleteIndividualError;
+        if (deleteIndividualError) throw deleteIndividualError;
+
+        // Also delete player selections for changed matches
+        const { error: deleteSelectionsError } = await supabase
+          .from('match_player_selections')
+          .delete()
+          .in('match_id', changedMatchIds);
+
+        if (deleteSelectionsError) throw deleteSelectionsError;
+      }
 
       setMessage({
         type: 'success',
-        text: 'Calendrier mis à jour avec succès',
+        text: changedMatchIds.length > 0
+          ? `Calendrier mis à jour (${changedMatchIds.length} rencontre(s) modifiée(s))`
+          : 'Aucune modification détectée',
       });
 
       await loadData();
