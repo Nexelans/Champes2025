@@ -56,6 +56,7 @@ export default function ResultsEntry() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [selectedDivision, setSelectedDivision] = useState<'champe1' | 'champe2'>('champe1');
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   useEffect(() => {
     if (captain || isAdmin) {
@@ -446,46 +447,87 @@ export default function ResultsEntry() {
 
   const totals = selectedMatch ? calculateTotals() : { team1Total: 0, team2Total: 0 };
 
-  // Filter matches by division for admin
+  // Filter matches by division and day for admin
   const filteredMatches = isAdmin
-    ? matches.filter(match => match.division === selectedDivision)
+    ? matches.filter(match => {
+        const divisionMatch = match.division === selectedDivision;
+        const dayMatch = selectedDay === null || match.round_number === selectedDay;
+        return divisionMatch && dayMatch;
+      })
     : matches;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-start justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold text-slate-900">Saisie des résultats</h2>
 
         {isAdmin && (
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-slate-700">Division :</label>
-            <div className="flex bg-slate-100 rounded-lg p-1">
-              <button
-                onClick={() => {
-                  setSelectedDivision('champe1');
-                  setSelectedMatch(null);
-                }}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedDivision === 'champe1'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Champe 1
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedDivision('champe2');
-                  setSelectedMatch(null);
-                }}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedDivision === 'champe2'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Champe 2
-              </button>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Division :</label>
+              <div className="flex bg-slate-100 rounded-lg p-1">
+                <button
+                  onClick={() => {
+                    setSelectedDivision('champe1');
+                    setSelectedMatch(null);
+                  }}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedDivision === 'champe1'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Champe 1
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedDivision('champe2');
+                    setSelectedMatch(null);
+                  }}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedDivision === 'champe2'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Champe 2
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Jour :</label>
+              <div className="flex bg-slate-100 rounded-lg p-1 flex-wrap">
+                <button
+                  onClick={() => {
+                    setSelectedDay(null);
+                    setSelectedMatch(null);
+                  }}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedDay === null
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Tous
+                </button>
+                {[1, 2, 3, 4, 5].map((day) => (
+                  <button
+                    key={day}
+                    onClick={() => {
+                      setSelectedDay(day);
+                      setSelectedMatch(null);
+                    }}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      selectedDay === day
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    J{day}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -506,7 +548,10 @@ export default function ResultsEntry() {
 
       <div className="bg-white rounded-xl shadow-md border border-slate-200 p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-4">
-          {isAdmin ? `Sélectionner une rencontre - ${selectedDivision === 'champe1' ? 'Champe 1' : 'Champe 2'}` : 'Sélectionner une rencontre à domicile'}
+          {isAdmin
+            ? `Sélectionner une rencontre - ${selectedDivision === 'champe1' ? 'Champe 1' : 'Champe 2'}${selectedDay !== null ? ` - J${selectedDay}` : ' - Tous les jours'}`
+            : 'Sélectionner une rencontre à domicile'
+          }
         </h3>
 
         {isAdmin && filteredMatches.length > 0 && (
@@ -520,7 +565,7 @@ export default function ResultsEntry() {
         {filteredMatches.length === 0 ? (
           <p className="text-slate-600 text-center py-8">
             {isAdmin
-              ? `Aucune rencontre trouvée pour ${selectedDivision === 'champe1' ? 'Champe 1' : 'Champe 2'}.`
+              ? `Aucune rencontre trouvée pour ${selectedDivision === 'champe1' ? 'Champe 1' : 'Champe 2'}${selectedDay !== null ? ` le J${selectedDay}` : ''}.`
               : 'Aucune rencontre à domicile trouvée. Seuls les capitaines qui reçoivent peuvent saisir les résultats.'
             }
           </p>
