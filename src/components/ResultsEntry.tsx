@@ -55,6 +55,7 @@ export default function ResultsEntry() {
   const [team2Players, setTeam2Players] = useState<AvailablePlayer[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [selectedDivision, setSelectedDivision] = useState<'champe1' | 'champe2'>('champe1');
 
   useEffect(() => {
     if (captain || isAdmin) {
@@ -445,10 +446,49 @@ export default function ResultsEntry() {
 
   const totals = selectedMatch ? calculateTotals() : { team1Total: 0, team2Total: 0 };
 
+  // Filter matches by division for admin
+  const filteredMatches = isAdmin
+    ? matches.filter(match => match.division === selectedDivision)
+    : matches;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold text-slate-900">Saisie des résultats</h2>
+
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-slate-700">Division :</label>
+            <div className="flex bg-slate-100 rounded-lg p-1">
+              <button
+                onClick={() => {
+                  setSelectedDivision('champe1');
+                  setSelectedMatch(null);
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedDivision === 'champe1'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Champe 1
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedDivision('champe2');
+                  setSelectedMatch(null);
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedDivision === 'champe2'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Champe 2
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -466,10 +506,10 @@ export default function ResultsEntry() {
 
       <div className="bg-white rounded-xl shadow-md border border-slate-200 p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-4">
-          {isAdmin ? 'Sélectionner une rencontre' : 'Sélectionner une rencontre à domicile'}
+          {isAdmin ? `Sélectionner une rencontre - ${selectedDivision === 'champe1' ? 'Champe 1' : 'Champe 2'}` : 'Sélectionner une rencontre à domicile'}
         </h3>
 
-        {isAdmin && matches.length > 0 && (
+        {isAdmin && filteredMatches.length > 0 && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
               En tant qu'administrateur, vous pouvez saisir ou corriger les résultats de tous les matchs.
@@ -477,16 +517,16 @@ export default function ResultsEntry() {
           </div>
         )}
 
-        {matches.length === 0 ? (
+        {filteredMatches.length === 0 ? (
           <p className="text-slate-600 text-center py-8">
             {isAdmin
-              ? 'Aucune rencontre trouvée pour cette saison.'
+              ? `Aucune rencontre trouvée pour ${selectedDivision === 'champe1' ? 'Champe 1' : 'Champe 2'}.`
               : 'Aucune rencontre à domicile trouvée. Seuls les capitaines qui reçoivent peuvent saisir les résultats.'
             }
           </p>
         ) : (
           <div className="space-y-3">
-            {matches.map((match) => (
+            {filteredMatches.map((match) => (
               <button
                 key={match.id}
                 onClick={() => setSelectedMatch(match)}
@@ -498,15 +538,8 @@ export default function ResultsEntry() {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="px-3 py-1 bg-emerald-600 text-white text-sm font-bold rounded-lg">
-                        J{match.round_number}
-                      </div>
-                      {isAdmin && (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-md">
-                          {match.division === 'champe1' ? 'Champe 1' : 'Champe 2'}
-                        </span>
-                      )}
+                    <div className="px-3 py-1 bg-emerald-600 text-white text-sm font-bold rounded-lg">
+                      J{match.round_number}
                     </div>
                     <p className="text-sm text-slate-600 font-medium">{formatDate(match.match_date)}</p>
                   </div>
