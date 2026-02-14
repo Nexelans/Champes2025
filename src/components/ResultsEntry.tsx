@@ -19,8 +19,12 @@ interface Match {
 interface IndividualMatch {
   id: string;
   match_order: number;
+  team1_player_id: string;
+  team2_player_id: string;
   team1_player_name: string;
   team2_player_name: string;
+  team1_player2_id?: string;
+  team2_player2_id?: string;
   team1_player2_name?: string;
   team2_player2_name?: string;
   team1_handicap?: number;
@@ -34,6 +38,12 @@ interface IndividualMatch {
   team2_points: number;
 }
 
+interface AvailablePlayer {
+  id: string;
+  name: string;
+  handicap_index: number;
+}
+
 export default function ResultsEntry() {
   const { captain, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -41,8 +51,11 @@ export default function ResultsEntry() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [individualMatches, setIndividualMatches] = useState<IndividualMatch[]>([]);
+  const [team1Players, setTeam1Players] = useState<AvailablePlayer[]>([]);
+  const [team2Players, setTeam2Players] = useState<AvailablePlayer[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
     if (captain || isAdmin) {
@@ -138,6 +151,10 @@ export default function ResultsEntry() {
           team2_handicap,
           strokes_given,
           strokes_receiver,
+          team1_player_id,
+          team2_player_id,
+          team1_player2_id,
+          team2_player2_id,
           team1_player:players!individual_matches_team1_player_id_fkey(first_name, last_name),
           team2_player:players!individual_matches_team2_player_id_fkey(first_name, last_name),
           team1_player2:players!individual_matches_team1_player2_id_fkey(first_name, last_name),
@@ -151,6 +168,10 @@ export default function ResultsEntry() {
       const formatted: IndividualMatch[] = data.map((im: any) => ({
         id: im.id,
         match_order: im.match_order,
+        team1_player_id: im.team1_player_id,
+        team2_player_id: im.team2_player_id,
+        team1_player2_id: im.team1_player2_id,
+        team2_player2_id: im.team2_player2_id,
         team1_player_name: im.team1_player ? `${im.team1_player.first_name} ${im.team1_player.last_name}` : 'À définir',
         team2_player_name: im.team2_player ? `${im.team2_player.first_name} ${im.team2_player.last_name}` : 'À définir',
         team1_player2_name: im.team1_player2 ? `${im.team1_player2.first_name} ${im.team1_player2.last_name}` : undefined,
@@ -167,6 +188,44 @@ export default function ResultsEntry() {
       }));
 
       setIndividualMatches(formatted);
+
+      // Load available players for admin
+      if (isAdmin) {
+        const { data: selectionsData, error: selectionsError } = await supabase
+          .from('match_player_selections')
+          .select(`
+            player_id,
+            team_id,
+            players!inner(
+              id,
+              first_name,
+              last_name,
+              handicap_index
+            )
+          `)
+          .eq('match_id', selectedMatch.id);
+
+        if (selectionsError) throw selectionsError;
+
+        const team1Selected = selectionsData
+          .filter((s: any) => s.team_id === selectedMatch.team1_id)
+          .map((s: any) => ({
+            id: s.players.id,
+            name: `${s.players.first_name} ${s.players.last_name}`,
+            handicap_index: s.players.handicap_index,
+          }));
+
+        const team2Selected = selectionsData
+          .filter((s: any) => s.team_id === selectedMatch.team2_id)
+          .map((s: any) => ({
+            id: s.players.id,
+            name: `${s.players.first_name} ${s.players.last_name}`,
+            handicap_index: s.players.handicap_index,
+          }));
+
+        setTeam1Players(team1Selected);
+        setTeam2Players(team2Selected);
+      }
     } catch (err) {
       console.error('Error loading individual matches:', err);
       setError('Erreur lors du chargement des matchs individuels');
@@ -202,6 +261,76 @@ export default function ResultsEntry() {
     );
   };
 
+  const updatePlayer = (matchId: string, field: 'team1_player_id' | 'team2_player_id', playerId: string) => {
+    setIndividualMatches(prev =>
+      prev.map(im => {
+        if (im.id === matchId) {
+          const players = field === 'team1_player_id' ? team1Players : team2Players;
+          const player = players.find(p => p.id === playerId);
+
+          if (field === 'team1_player_id') {
+            return {
+              ...im,
+              team1_player_id: playerId,
+              team1_player_name: player?.name || 'À définir',
+            };
+          } else {
+            return {
+              ...im,
+              team2_player_id: playerId,
+              team2_player_name: player?.name || 'À définir',
+            };
+          }
+        }
+        return im;
+      })
+    );
+  };
+
+  const handleRegenerateMatches = async () => {
+    if (!selectedMatch) return;
+
+    setRegenerating(true);
+    setError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Non authentifié');
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-individual-matches`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ matchId: selectedMatch.id }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erreur lors de la régénération des matchs');
+      }
+
+      await loadIndividualMatches();
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error regenerating matches:', err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Erreur lors de la régénération des matchs');
+      }
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!selectedMatch) return;
 
@@ -209,16 +338,62 @@ export default function ResultsEntry() {
     setError(null);
 
     try {
+      // Validate player selections for admin
+      if (isAdmin) {
+        const team1UsedPlayers = individualMatches.map(im => im.team1_player_id).filter(Boolean);
+        const team2UsedPlayers = individualMatches.map(im => im.team2_player_id).filter(Boolean);
+
+        // Check for unique players (each player can only play once)
+        const team1Unique = new Set(team1UsedPlayers);
+        const team2Unique = new Set(team2UsedPlayers);
+
+        if (team1Unique.size !== team1UsedPlayers.length) {
+          throw new Error('Chaque joueur de l\'équipe 1 ne peut être sélectionné qu\'une seule fois');
+        }
+
+        if (team2Unique.size !== team2UsedPlayers.length) {
+          throw new Error('Chaque joueur de l\'équipe 2 ne peut être sélectionné qu\'une seule fois');
+        }
+
+        // Check that all 8 matches have players assigned
+        if (team1UsedPlayers.length !== 8) {
+          throw new Error(`Tous les matchs de l'équipe 1 doivent avoir un joueur assigné (${team1UsedPlayers.length}/8)`);
+        }
+
+        if (team2UsedPlayers.length !== 8) {
+          throw new Error(`Tous les matchs de l'équipe 2 doivent avoir un joueur assigné (${team2UsedPlayers.length}/8)`);
+        }
+
+        // Check that all selected players are from the available players
+        const team1PlayerIds = team1Players.map(p => p.id);
+        const team2PlayerIds = team2Players.map(p => p.id);
+
+        const invalidTeam1 = team1UsedPlayers.some(id => !team1PlayerIds.includes(id));
+        const invalidTeam2 = team2UsedPlayers.some(id => !team2PlayerIds.includes(id));
+
+        if (invalidTeam1 || invalidTeam2) {
+          throw new Error('Joueurs invalides sélectionnés. Veuillez sélectionner uniquement parmi les joueurs de la sélection du capitaine.');
+        }
+      }
+
       for (const im of individualMatches) {
+        const updateData: any = {
+          result: im.result,
+          score_detail: im.score_detail,
+          starting_hole: im.starting_hole,
+          team1_points: im.team1_points,
+          team2_points: im.team2_points,
+        };
+
+        // Add player IDs if admin modified them
+        if (isAdmin) {
+          updateData.team1_player_id = im.team1_player_id;
+          updateData.team2_player_id = im.team2_player_id;
+        }
+
         const { error: updateError, data } = await supabase
           .from('individual_matches')
-          .update({
-            result: im.result,
-            score_detail: im.score_detail,
-            starting_hole: im.starting_hole,
-            team1_points: im.team1_points,
-            team2_points: im.team2_points,
-          })
+          .update(updateData)
           .eq('id', im.id)
           .select();
 
@@ -403,9 +578,37 @@ export default function ResultsEntry() {
                 <p className="text-xs sm:text-sm">
                   Cliquez sur le résultat de chaque match. Victoire = 2 pts, nul = 1 pt chacun.
                 </p>
+                {isAdmin && (
+                  <p className="text-xs sm:text-sm mt-2 font-medium">
+                    En tant qu'administrateur, vous pouvez modifier les joueurs de chaque match.
+                    Après avoir modifié les joueurs, cliquez sur "Régénérer les matchs" pour recalculer les coups rendus.
+                  </p>
+                )}
               </div>
             </div>
           </div>
+
+          {isAdmin && (
+            <div className="flex justify-end">
+              <button
+                onClick={handleRegenerateMatches}
+                disabled={regenerating}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
+              >
+                {regenerating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Régénération...</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-5 h-5" />
+                    <span>Régénérer les matchs (recalcule les coups rendus)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           <div className="space-y-4">
             {individualMatches.map((im) => (
@@ -434,22 +637,66 @@ export default function ResultsEntry() {
                 <div className="p-4 space-y-3">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1">
-                      <p className="font-semibold text-slate-900 text-base">{im.team1_player_name}</p>
-                      {im.team1_player2_name && (
-                        <p className="font-semibold text-slate-900 text-base">{im.team1_player2_name}</p>
-                      )}
-                      {im.team1_handicap !== undefined && im.team1_handicap !== null && (
-                        <p className="text-xs text-slate-500 mt-1">Index: {im.team1_handicap.toFixed(1)}</p>
+                      {isAdmin ? (
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">
+                            Joueur {selectedMatch.team1_club}
+                          </label>
+                          <select
+                            value={im.team1_player_id}
+                            onChange={(e) => updatePlayer(im.id, 'team1_player_id', e.target.value)}
+                            className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white"
+                          >
+                            <option value="">Sélectionner un joueur</option>
+                            {team1Players.map((player) => (
+                              <option key={player.id} value={player.id}>
+                                {player.name} (Index: {player.handicap_index.toFixed(1)})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-semibold text-slate-900 text-base">{im.team1_player_name}</p>
+                          {im.team1_player2_name && (
+                            <p className="font-semibold text-slate-900 text-base">{im.team1_player2_name}</p>
+                          )}
+                          {im.team1_handicap !== undefined && im.team1_handicap !== null && (
+                            <p className="text-xs text-slate-500 mt-1">Index: {im.team1_handicap.toFixed(1)}</p>
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="text-slate-400 font-bold text-lg px-2">VS</div>
                     <div className="flex-1">
-                      <p className="font-semibold text-slate-900 text-base">{im.team2_player_name}</p>
-                      {im.team2_player2_name && (
-                        <p className="font-semibold text-slate-900 text-base">{im.team2_player2_name}</p>
-                      )}
-                      {im.team2_handicap !== undefined && im.team2_handicap !== null && (
-                        <p className="text-xs text-slate-500 mt-1">Index: {im.team2_handicap.toFixed(1)}</p>
+                      {isAdmin ? (
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">
+                            Joueur {selectedMatch.team2_club}
+                          </label>
+                          <select
+                            value={im.team2_player_id}
+                            onChange={(e) => updatePlayer(im.id, 'team2_player_id', e.target.value)}
+                            className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white"
+                          >
+                            <option value="">Sélectionner un joueur</option>
+                            {team2Players.map((player) => (
+                              <option key={player.id} value={player.id}>
+                                {player.name} (Index: {player.handicap_index.toFixed(1)})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-semibold text-slate-900 text-base">{im.team2_player_name}</p>
+                          {im.team2_player2_name && (
+                            <p className="font-semibold text-slate-900 text-base">{im.team2_player2_name}</p>
+                          )}
+                          {im.team2_handicap !== undefined && im.team2_handicap !== null && (
+                            <p className="text-xs text-slate-500 mt-1">Index: {im.team2_handicap.toFixed(1)}</p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
