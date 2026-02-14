@@ -121,8 +121,14 @@ Deno.serve(async (req: Request) => {
         const team2Player1Handicap = (team2Player1.players as any).handicap_index;
         const team2Player2Handicap = (team2Player2.players as any).handicap_index;
 
-        const team1RoundedAvg = (Math.round(team1Player1Handicap) + Math.round(team1Player2Handicap)) / 2;
-        const team2RoundedAvg = (Math.round(team2Player1Handicap) + Math.round(team2Player2Handicap)) / 2;
+        // Cap handicaps at 30 for stroke calculation
+        const team1Player1Capped = Math.min(team1Player1Handicap, 30);
+        const team1Player2Capped = Math.min(team1Player2Handicap, 30);
+        const team2Player1Capped = Math.min(team2Player1Handicap, 30);
+        const team2Player2Capped = Math.min(team2Player2Handicap, 30);
+
+        const team1RoundedAvg = (Math.round(team1Player1Capped) + Math.round(team1Player2Capped)) / 2;
+        const team2RoundedAvg = (Math.round(team2Player1Capped) + Math.round(team2Player2Capped)) / 2;
 
         const strokeInfo = calculateStrokesGiven(team1RoundedAvg, team2RoundedAvg, true);
         const scoreDetail = strokeInfo.strokes > 0
@@ -154,7 +160,11 @@ Deno.serve(async (req: Request) => {
         const team1Handicap = (team1Player.players as any).handicap_index;
         const team2Handicap = (team2Player.players as any).handicap_index;
 
-        const strokeInfo = calculateStrokesGiven(team1Handicap, team2Handicap);
+        // Cap handicaps at 30 for stroke calculation
+        const team1HandicapCapped = Math.min(team1Handicap, 30);
+        const team2HandicapCapped = Math.min(team2Handicap, 30);
+
+        const strokeInfo = calculateStrokesGiven(team1HandicapCapped, team2HandicapCapped);
         const scoreDetail = strokeInfo.strokes > 0
           ? `${strokeInfo.strokes} coup${strokeInfo.strokes > 1 ? 's' : ''} rendu${strokeInfo.strokes > 1 ? 's' : ''} au joueur ${strokeInfo.receiver}`
           : 'Égalité de handicap';
