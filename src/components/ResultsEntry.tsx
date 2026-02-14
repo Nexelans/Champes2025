@@ -55,7 +55,6 @@ export default function ResultsEntry() {
   const [team2Players, setTeam2Players] = useState<AvailablePlayer[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
     if (captain || isAdmin) {
@@ -261,6 +260,16 @@ export default function ResultsEntry() {
     );
   };
 
+  const calculateStrokesGiven = (handicap1: number, handicap2: number, isFoursome: boolean = false): { strokes: number, receiver: 1 | 2 } => {
+    const roundedHandicap1 = Math.round(handicap1);
+    const roundedHandicap2 = Math.round(handicap2);
+    const diff = Math.abs(roundedHandicap1 - roundedHandicap2);
+    const multiplier = isFoursome ? 0.375 : 0.75;
+    const strokes = Math.round(diff * multiplier);
+    const receiver = handicap1 > handicap2 ? 1 : 2;
+    return { strokes, receiver };
+  };
+
   const updatePlayer = (matchId: string, field: 'team1_player_id' | 'team2_player_id', playerId: string) => {
     setIndividualMatches(prev =>
       prev.map(im => {
@@ -268,67 +277,31 @@ export default function ResultsEntry() {
           const players = field === 'team1_player_id' ? team1Players : team2Players;
           const player = players.find(p => p.id === playerId);
 
+          let updated = { ...im };
+
           if (field === 'team1_player_id') {
-            return {
-              ...im,
-              team1_player_id: playerId,
-              team1_player_name: player?.name || 'À définir',
-            };
+            updated.team1_player_id = playerId;
+            updated.team1_player_name = player?.name || 'À définir';
+            updated.team1_handicap = player?.handicap_index;
           } else {
-            return {
-              ...im,
-              team2_player_id: playerId,
-              team2_player_name: player?.name || 'À définir',
-            };
+            updated.team2_player_id = playerId;
+            updated.team2_player_name = player?.name || 'À définir';
+            updated.team2_handicap = player?.handicap_index;
           }
+
+          // Recalculate strokes if both players are selected
+          if (updated.team1_handicap !== undefined && updated.team2_handicap !== undefined) {
+            const isFoursome = im.match_order >= 7;
+            const strokeCalc = calculateStrokesGiven(updated.team1_handicap, updated.team2_handicap, isFoursome);
+            updated.strokes_given = strokeCalc.strokes;
+            updated.strokes_receiver = strokeCalc.receiver;
+          }
+
+          return updated;
         }
         return im;
       })
     );
-  };
-
-  const handleRegenerateMatches = async () => {
-    if (!selectedMatch) return;
-
-    setRegenerating(true);
-    setError(null);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Non authentifié');
-      }
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-individual-matches`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ matchId: selectedMatch.id }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Erreur lors de la régénération des matchs');
-      }
-
-      await loadIndividualMatches();
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      console.error('Error regenerating matches:', err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Erreur lors de la régénération des matchs');
-      }
-    } finally {
-      setRegenerating(false);
-    }
   };
 
   const handleSave = async () => {
@@ -385,10 +358,14 @@ export default function ResultsEntry() {
           team2_points: im.team2_points,
         };
 
-        // Add player IDs if admin modified them
+        // Add player IDs and recalculated handicaps/strokes if admin modified them
         if (isAdmin) {
           updateData.team1_player_id = im.team1_player_id;
           updateData.team2_player_id = im.team2_player_id;
+          updateData.team1_handicap = im.team1_handicap;
+          updateData.team2_handicap = im.team2_handicap;
+          updateData.strokes_given = im.strokes_given;
+          updateData.strokes_receiver = im.strokes_receiver;
         }
 
         const { error: updateError, data } = await supabase
@@ -581,34 +558,12 @@ export default function ResultsEntry() {
                 {isAdmin && (
                   <p className="text-xs sm:text-sm mt-2 font-medium">
                     En tant qu'administrateur, vous pouvez modifier les joueurs de chaque match.
-                    Après avoir modifié les joueurs, cliquez sur "Régénérer les matchs" pour recalculer les coups rendus.
+                    Les coups rendus sont recalculés automatiquement.
                   </p>
                 )}
               </div>
             </div>
           </div>
-
-          {isAdmin && (
-            <div className="flex justify-end">
-              <button
-                onClick={handleRegenerateMatches}
-                disabled={regenerating}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
-              >
-                {regenerating ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Régénération...</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="w-5 h-5" />
-                    <span>Régénérer les matchs (recalcule les coups rendus)</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
 
           <div className="space-y-4">
             {individualMatches.map((im) => (
@@ -627,7 +582,7 @@ export default function ResultsEntry() {
                       </p>
                       {im.strokes_given !== undefined && im.strokes_given > 0 && (
                         <p className="text-xs font-medium text-blue-600 mt-0.5">
-                          {im.strokes_given} coup{im.strokes_given > 1 ? 's' : ''} rendu{im.strokes_given > 1 ? 's' : ''}
+                          {im.strokes_given} coup{im.strokes_given > 1 ? 's' : ''} rendu{im.strokes_given > 1 ? 's' : ''} {im.strokes_receiver === 1 ? `à ${selectedMatch.team1_club}` : `à ${selectedMatch.team2_club}`}
                         </p>
                       )}
                     </div>
@@ -654,6 +609,9 @@ export default function ResultsEntry() {
                               </option>
                             ))}
                           </select>
+                          {im.team1_handicap !== undefined && im.team1_handicap !== null && (
+                            <p className="text-xs text-slate-500 mt-1">Index: {im.team1_handicap.toFixed(1)}</p>
+                          )}
                         </div>
                       ) : (
                         <>
@@ -686,6 +644,9 @@ export default function ResultsEntry() {
                               </option>
                             ))}
                           </select>
+                          {im.team2_handicap !== undefined && im.team2_handicap !== null && (
+                            <p className="text-xs text-slate-500 mt-1">Index: {im.team2_handicap.toFixed(1)}</p>
+                          )}
                         </div>
                       ) : (
                         <>
