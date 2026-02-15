@@ -60,14 +60,16 @@ export default function Standings({ division }: StandingsProps) {
         teams.map(async (team) => {
           const { data: homeMatches } = await supabase
             .from('matches')
-            .select('team1_points, team2_points, status')
+            .select('team1_points, team2_points, status, division')
             .eq('team1_id', team.id)
+            .eq('division', division)
             .eq('status', 'completed');
 
           const { data: awayMatches } = await supabase
             .from('matches')
-            .select('team1_points, team2_points, status')
+            .select('team1_points, team2_points, status, division')
             .eq('team2_id', team.id)
+            .eq('division', division)
             .eq('status', 'completed');
 
           let totalPoints = 0;
