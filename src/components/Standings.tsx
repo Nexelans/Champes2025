@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trophy, TrendingUp, TrendingDown, Minus, FileDown } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Minus, FileDown, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type StandingsProps = {
@@ -22,6 +22,7 @@ type TeamStanding = {
 export default function Standings({ division }: StandingsProps) {
   const [standings, setStandings] = useState<TeamStanding[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadStandings();
@@ -138,6 +139,12 @@ export default function Standings({ division }: StandingsProps) {
     window.print();
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadStandings();
+    setRefreshing(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -160,13 +167,24 @@ export default function Standings({ division }: StandingsProps) {
                 Saison 2024-2025 • {standings.length} équipes
               </p>
             </div>
-            <button
-              onClick={handlePrintPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors print:hidden"
-            >
-              <FileDown className="h-4 w-4" />
-              <span>Imprimer PDF</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors print:hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Recalculer les classements"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>{refreshing ? 'Calcul...' : 'Rafraîchir'}</span>
+              </button>
+              <button
+                onClick={handlePrintPDF}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors print:hidden"
+              >
+                <FileDown className="h-4 w-4" />
+                <span>Imprimer PDF</span>
+              </button>
+            </div>
           </div>
         </div>
 
