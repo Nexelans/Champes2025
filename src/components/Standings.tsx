@@ -78,11 +78,14 @@ export default function Standings({ division }: StandingsProps) {
           let awayWins = 0;
 
           homeMatches?.forEach((match) => {
-            totalPoints += match.team1_points;
-            if (match.team1_points > match.team2_points) {
+            const team1Score = match.team1_points || 0;
+            const team2Score = match.team2_points || 0;
+            totalPoints += team1Score;
+
+            if (team1Score > team2Score) {
               wins++;
               homeWins++;
-            } else if (match.team1_points === match.team2_points) {
+            } else if (team1Score === team2Score) {
               draws++;
             } else {
               losses++;
@@ -90,11 +93,14 @@ export default function Standings({ division }: StandingsProps) {
           });
 
           awayMatches?.forEach((match) => {
-            totalPoints += match.team2_points;
-            if (match.team2_points > match.team1_points) {
+            const team1Score = match.team1_points || 0;
+            const team2Score = match.team2_points || 0;
+            totalPoints += team2Score;
+
+            if (team2Score > team1Score) {
               wins++;
               awayWins++;
-            } else if (match.team2_points === match.team1_points) {
+            } else if (team2Score === team1Score) {
               draws++;
             } else {
               losses++;
