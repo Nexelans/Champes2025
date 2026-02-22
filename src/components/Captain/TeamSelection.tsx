@@ -769,12 +769,22 @@ function FinalSelectionView({
           {completePairs.map(([p1, p2], pairIndex) => {
             const player1 = getPlayerById(p1.player_id);
             const player2 = p2 ? getPlayerById(p2.player_id) : null;
+            const pairIndex_ = player1?.handicap_index != null && player2?.handicap_index != null
+              ? ((player1.handicap_index + player2.handicap_index) / 2).toFixed(1)
+              : null;
             return (
               <div key={pairIndex} className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
-                    Paire {pairIndex + 1}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                      Paire {pairIndex + 1}
+                    </span>
+                    {pairIndex_ !== null && (
+                      <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        Index paire : {pairIndex_}
+                      </span>
+                    )}
+                  </div>
                   {canModify && (
                     <div className="flex gap-1">
                       <button
