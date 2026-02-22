@@ -17,6 +17,8 @@ type Match = {
   host_club_id: string;
   team1_points: number;
   team2_points: number;
+  match_type: string;
+  is_final: boolean;
 };
 
 type IndividualMatch = {
@@ -35,10 +37,17 @@ type IndividualMatch = {
   team2_points: number;
 };
 
+const MATCH_TYPE_LABELS: Record<string, string> = {
+  final_1st: 'Finale 1re / 2e place',
+  final_3rd: 'Match 3e / 4e place',
+  final_5th: 'Match 5e / 6e place',
+};
+
 export default function MatchesView({ division }: MatchesViewProps) {
   const [loading, setLoading] = useState(true);
   const [matches, setMatches] = useState<Match[]>([]);
   const [selectedRound, setSelectedRound] = useState<number>(1);
+  const [showFinals, setShowFinals] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<string | null>(null);
   const [individualMatches, setIndividualMatches] = useState<IndividualMatch[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -49,8 +58,8 @@ export default function MatchesView({ division }: MatchesViewProps) {
   }, [division]);
 
   useEffect(() => {
-    if (matches.length > 0) {
-      const roundMatches = matches.filter(m => m.round_number === selectedRound);
+    if (matches.length > 0 && !showFinals) {
+      const roundMatches = matches.filter(m => m.round_number === selectedRound && !m.is_final);
       if (roundMatches.length > 0 && !selectedMatch) {
         setSelectedMatch(roundMatches[0].id);
       }
@@ -86,6 +95,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
           team1_points,
           team2_points,
           host_club_id,
+          match_type,
           host_club:clubs!matches_host_club_id_fkey(name),
           team1:teams!matches_team1_id_fkey(
             club:clubs(name)
@@ -96,7 +106,6 @@ export default function MatchesView({ division }: MatchesViewProps) {
         `)
         .eq('season_id', seasonData.id)
         .eq('division', division)
-        .lte('round_number', 5)
         .order('round_number')
         .order('match_date');
 
@@ -113,8 +122,15 @@ export default function MatchesView({ division }: MatchesViewProps) {
           host_club_id: m.host_club_id,
           team1_points: m.team1_points || 0,
           team2_points: m.team2_points || 0,
+          match_type: m.match_type || 'regular',
+          is_final: m.round_number === 6,
         }));
         setMatches(formattedMatches);
+
+        const hasFinals = formattedMatches.some(m => m.is_final);
+        if (!hasFinals) {
+          setShowFinals(false);
+        }
       }
     } catch (error) {
       console.error('Error loading matches:', error);
@@ -188,10 +204,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
   };
 
   const getResultBadge = (result: string | null) => {
-    if (!result) {
-      return <span className="text-slate-400 text-sm">À jouer</span>;
-    }
-
+    if (!result) return <span className="text-slate-400 text-sm">À jouer</span>;
     switch (result) {
       case 'team1_win':
         return <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-semibold">Victoire équipe 1</span>;
@@ -202,6 +215,24 @@ export default function MatchesView({ division }: MatchesViewProps) {
       default:
         return <span className="text-slate-400 text-sm">À jouer</span>;
     }
+  };
+
+  const getLockDeadline = (matchDate: string) => {
+    const match = new Date(matchDate);
+    const matchDay = match.getDay();
+    let daysToSubtract;
+    if (matchDay === 0) daysToSubtract = 2;
+    else if (matchDay === 6) daysToSubtract = 1;
+    else daysToSubtract = matchDay + 2;
+    const lockDeadline = new Date(match);
+    lockDeadline.setDate(lockDeadline.getDate() - daysToSubtract);
+    lockDeadline.setHours(17, 0, 0, 0);
+    return lockDeadline;
+  };
+
+  const isMatchLocked = (matchDate: string) => {
+    const now = new Date();
+    return now >= getLockDeadline(matchDate);
   };
 
   if (loading) {
@@ -222,35 +253,15 @@ export default function MatchesView({ division }: MatchesViewProps) {
   }
 
   const divisionLabel = division === 'champe1' ? 'Champe 1' : 'Champe 2';
-  const roundMatches = matches.filter(m => m.round_number === selectedRound);
+  const regularMatches = matches.filter(m => !m.is_final);
+  const finalMatches = matches.filter(m => m.is_final);
+  const hasFinals = finalMatches.length > 0;
+
+  const currentRoundMatches = showFinals
+    ? finalMatches
+    : regularMatches.filter(m => m.round_number === selectedRound);
+
   const selectedMatchData = matches.find(m => m.id === selectedMatch);
-
-  const getLockDeadline = (matchDate: string) => {
-    const match = new Date(matchDate);
-    const matchDay = match.getDay();
-
-    let daysToSubtract;
-    if (matchDay === 0) {
-      daysToSubtract = 2;
-    } else if (matchDay === 6) {
-      daysToSubtract = 1;
-    } else {
-      daysToSubtract = matchDay + 2;
-    }
-
-    const lockDeadline = new Date(match);
-    lockDeadline.setDate(lockDeadline.getDate() - daysToSubtract);
-    lockDeadline.setHours(17, 0, 0, 0);
-
-    return lockDeadline;
-  };
-
-  const isMatchLocked = (matchDate: string) => {
-    const now = new Date();
-    const lockDeadline = getLockDeadline(matchDate);
-    return now >= lockDeadline;
-  };
-
   const shouldShowDisclaimer = selectedMatchData && !isMatchLocked(selectedMatchData.match_date);
 
   return (
@@ -268,8 +279,8 @@ export default function MatchesView({ division }: MatchesViewProps) {
             <div className="text-sm text-amber-900">
               <p className="font-semibold">Information importante</p>
               <p className="mt-1">
-                Les informations affichées sont provisoires jusqu'à la date limite de sélection des joueurs
-                par les capitaines : <span className="font-bold">
+                Les informations affichées sont provisoires jusqu'à la date limite de sélection des joueurs :
+                <span className="font-bold ml-1">
                   vendredi {getLockDeadline(selectedMatchData.match_date).toLocaleDateString('fr-FR', {
                     day: '2-digit',
                     month: '2-digit'
@@ -287,16 +298,17 @@ export default function MatchesView({ division }: MatchesViewProps) {
             <label className="block text-sm font-medium text-slate-700 mb-3">
               Sélectionner la journée
             </label>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+            <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5].map((round) => (
                 <button
                   key={round}
                   onClick={() => {
                     setSelectedRound(round);
+                    setShowFinals(false);
                     setSelectedMatch(null);
                   }}
                   className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    selectedRound === round
+                    selectedRound === round && !showFinals
                       ? 'bg-emerald-600 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
@@ -304,27 +316,50 @@ export default function MatchesView({ division }: MatchesViewProps) {
                   Journée {round}
                 </button>
               ))}
+              {hasFinals && (
+                <button
+                  onClick={() => {
+                    setShowFinals(true);
+                    setSelectedMatch(null);
+                  }}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    showFinals
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                  }`}
+                >
+                  <Trophy className="h-4 w-4" />
+                  Finales
+                </button>
+              )}
             </div>
           </div>
 
-          {roundMatches.length > 0 && (
+          {currentRoundMatches.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-3">
-                Sélectionner la rencontre
+                {showFinals ? 'Matchs de finale' : 'Rencontres'}
               </label>
               <div className="space-y-2">
-                {roundMatches.map((match) => (
+                {currentRoundMatches.map((match) => (
                   <button
                     key={match.id}
                     onClick={() => setSelectedMatch(match.id)}
                     className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
                       selectedMatch === match.id
-                        ? 'border-emerald-500 bg-emerald-50'
+                        ? match.is_final
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-emerald-500 bg-emerald-50'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
+                        {match.is_final && match.match_type !== 'regular' && (
+                          <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">
+                            {MATCH_TYPE_LABELS[match.match_type]}
+                          </p>
+                        )}
                         <div className="flex items-center gap-3">
                           <span className="font-semibold text-slate-900">{match.team1_club}</span>
                           <span className="text-slate-400 font-medium">vs</span>
@@ -352,14 +387,24 @@ export default function MatchesView({ division }: MatchesViewProps) {
 
       {selectedMatchData && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-4 rounded-t-xl">
+          <div className={`text-white px-6 py-4 rounded-t-xl ${
+            selectedMatchData.is_final
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+              : 'bg-gradient-to-r from-emerald-600 to-emerald-700'
+          }`}>
             <div className="flex items-center justify-between">
               <div>
+                {selectedMatchData.is_final && selectedMatchData.match_type !== 'regular' && (
+                  <p className="text-xs font-bold uppercase tracking-wider opacity-80 mb-1">
+                    {MATCH_TYPE_LABELS[selectedMatchData.match_type]}
+                  </p>
+                )}
                 <h3 className="text-xl font-bold">
                   {selectedMatchData.team1_club} vs {selectedMatchData.team2_club}
                 </h3>
-                <p className="text-emerald-100 text-sm mt-1">
-                  Journée {selectedRound} • {formatDate(selectedMatchData.match_date)} • {selectedMatchData.host_club}
+                <p className={`${selectedMatchData.is_final ? 'text-orange-100' : 'text-emerald-100'} text-sm mt-1`}>
+                  {selectedMatchData.is_final ? 'Finale' : `Journée ${selectedMatchData.round_number}`} •{' '}
+                  {formatDate(selectedMatchData.match_date)} • {selectedMatchData.host_club}
                 </p>
               </div>
               <div className="flex items-center gap-4">
@@ -367,7 +412,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
                   <div className="text-3xl font-bold">
                     {selectedMatchData.team1_points} - {selectedMatchData.team2_points}
                   </div>
-                  <p className="text-emerald-100 text-sm">Points</p>
+                  <p className={`${selectedMatchData.is_final ? 'text-orange-100' : 'text-emerald-100'} text-sm`}>Points</p>
                 </div>
                 {individualMatches.length > 0 && (
                   <ScorecardGenerator
@@ -402,7 +447,7 @@ export default function MatchesView({ division }: MatchesViewProps) {
                           </div>
                           {im.starting_hole && (
                             <div className="px-3 py-1 bg-emerald-600 text-white rounded-full text-xs font-medium whitespace-nowrap">
-                              Trou de départ : {im.starting_hole}
+                              Trou {im.starting_hole}
                             </div>
                           )}
                         </div>
@@ -456,10 +501,12 @@ export default function MatchesView({ division }: MatchesViewProps) {
         </div>
       )}
 
-      {roundMatches.length === 0 && (
+      {currentRoundMatches.length === 0 && (
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-12 text-center">
           <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-          <p className="text-slate-600">Aucune rencontre pour cette journée</p>
+          <p className="text-slate-600">
+            {showFinals ? 'Aucune finale programmée pour cette division' : 'Aucune rencontre pour cette journée'}
+          </p>
         </div>
       )}
     </div>

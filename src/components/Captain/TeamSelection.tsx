@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Users, AlertCircle, Save, X, Bell, CheckCircle } from 'lucide-react';
+import { Calendar, Users, AlertCircle, Save, X, Bell, CheckCircle, ArrowRight, UserPlus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface Player {
@@ -22,6 +22,7 @@ interface Match {
   opponent_name: string;
   is_home: boolean;
   is_final: boolean;
+  match_type: string;
   selection_unlocked_until: string | null;
 }
 
@@ -39,6 +40,12 @@ interface TeamSelectionProps {
   };
   isAdmin?: boolean;
 }
+
+const MATCH_TYPE_LABELS: Record<string, string> = {
+  final_1st: 'Finale 1re / 2e place',
+  final_3rd: 'Match 3e / 4e place',
+  final_5th: 'Match 5e / 6e place',
+};
 
 export default function TeamSelection({ captain, isAdmin = false }: TeamSelectionProps) {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -70,7 +77,6 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
 
   const checkScratchNotification = async () => {
     if (!selectedMatch) return;
-
     try {
       const { data } = await supabase
         .from('scratch_notifications')
@@ -79,7 +85,6 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
         .eq('team_id', captain.team_id)
         .eq('status', 'acknowledged')
         .maybeSingle();
-
       setHasAcknowledgedScratch(!!data);
     } catch (err) {
       console.error('Error checking scratch notification:', err);
@@ -110,6 +115,7 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
           team2_id,
           host_club_id,
           status,
+          match_type,
           selection_unlocked_until,
           team1:teams!matches_team1_id_fkey(id, club:clubs(name)),
           team2:teams!matches_team2_id_fkey(id, club:clubs(name))
@@ -117,7 +123,6 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
         .eq('season_id', seasonData.id)
         .eq('division', captain.division)
         .or(`team1_id.eq.${captain.team_id},team2_id.eq.${captain.team_id}`)
-        .lte('round_number', 5)
         .order('match_date');
 
       if (error) throw error;
@@ -125,6 +130,7 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
       const matchesWithOpponent = data.map((match: any) => {
         const isTeam1 = match.team1_id === captain.team_id;
         const opponentClub = isTeam1 ? match.team2?.club : match.team1?.club;
+        const isFinal = match.round_number === 6;
 
         return {
           id: match.id,
@@ -137,7 +143,8 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
           status: match.status,
           opponent_name: opponentClub?.name || 'Inconnu',
           is_home: match.host_club_id === captain.club_id,
-          is_final: false,
+          is_final: isFinal,
+          match_type: match.match_type || 'regular',
           selection_unlocked_until: match.selection_unlocked_until,
         };
       });
@@ -166,7 +173,6 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
       }
 
       const { data, error } = await query.order('handicap_index');
-
       if (error) throw error;
       setAvailablePlayers(data || []);
     } catch (err) {
@@ -177,7 +183,6 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
 
   const loadSelections = async () => {
     if (!selectedMatch) return;
-
     try {
       const { data, error } = await supabase
         .from('match_player_selections')
@@ -197,42 +202,28 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
   const getLockDeadline = (matchDate: string) => {
     const match = new Date(matchDate);
     const matchDay = match.getDay();
-
     let daysToSubtract;
-    if (matchDay === 0) {
-      daysToSubtract = 2;
-    } else if (matchDay === 6) {
-      daysToSubtract = 1;
-    } else {
-      daysToSubtract = matchDay + 2;
-    }
+    if (matchDay === 0) daysToSubtract = 2;
+    else if (matchDay === 6) daysToSubtract = 1;
+    else daysToSubtract = matchDay + 2;
 
     const lockDeadline = new Date(match);
     lockDeadline.setDate(lockDeadline.getDate() - daysToSubtract);
     lockDeadline.setHours(17, 0, 0, 0);
-
     return lockDeadline;
   };
 
   const isMatchLocked = (matchDate: string, selectionUnlockedUntil: string | null) => {
     const now = new Date();
-
-    // Check if there's an admin override to unlock
     if (selectionUnlockedUntil) {
       const unlockDeadline = new Date(selectionUnlockedUntil);
-      if (now < unlockDeadline) {
-        return false; // Admin has unlocked, selection is allowed
-      }
+      if (now < unlockDeadline) return false;
     }
-
-    // Otherwise check normal lock deadline
     const lockDeadline = getLockDeadline(matchDate);
     return now >= lockDeadline;
   };
 
-  const getMaxPlayers = (match: Match) => {
-    return match.is_final ? 10 : 8;
-  };
+  const getMaxPlayers = (match: Match) => match.is_final ? 10 : 8;
 
   const canModifySelection = () => {
     if (!selectedMatch) return false;
@@ -240,26 +231,22 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
     return !isMatchLocked(selectedMatch.match_date, selectedMatch.selection_unlocked_until) || hasAcknowledgedScratch;
   };
 
-  const getHoursUntilLock = (matchDate: string) => {
+  const getDaysUntilLock = (matchDate: string) => {
     const now = new Date();
     const lockDeadline = getLockDeadline(matchDate);
     const diffTime = lockDeadline.getTime() - now.getTime();
-    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
-    return diffHours;
-  };
-
-  const getDaysUntilLock = (matchDate: string) => {
-    const hours = getHoursUntilLock(matchDate);
-    return Math.ceil(hours / 24);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
   const togglePlayerSelection = (playerId: string) => {
     if (!canModifySelection()) return;
 
     const isSelected = selectedPlayers.some(s => s.player_id === playerId);
-
     if (isSelected) {
-      setSelectedPlayers(prev => prev.filter(s => s.player_id !== playerId));
+      setSelectedPlayers(prev => {
+        const filtered = prev.filter(s => s.player_id !== playerId);
+        return filtered.map((s, i) => ({ ...s, selection_order: i + 1 }));
+      });
     } else {
       const maxPlayers = getMaxPlayers(selectedMatch!);
       if (selectedPlayers.length >= maxPlayers) {
@@ -267,10 +254,37 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
         setTimeout(() => setError(null), 3000);
         return;
       }
-
       const nextOrder = selectedPlayers.length + 1;
       setSelectedPlayers(prev => [...prev, { player_id: playerId, selection_order: nextOrder }]);
     }
+  };
+
+  const movePairUp = (pairIndex: number) => {
+    if (pairIndex === 0) return;
+    setSelectedPlayers(prev => {
+      const arr = [...prev];
+      const p1 = pairIndex * 2;
+      const p2 = pairIndex * 2 + 1;
+      const prev1 = (pairIndex - 1) * 2;
+      const prev2 = (pairIndex - 1) * 2 + 1;
+      [arr[p1], arr[prev1]] = [arr[prev1], arr[p1]];
+      [arr[p2], arr[prev2]] = [arr[prev2], arr[p2]];
+      return arr.map((s, i) => ({ ...s, selection_order: i + 1 }));
+    });
+  };
+
+  const movePairDown = (pairIndex: number, totalPairs: number) => {
+    if (pairIndex === totalPairs - 1) return;
+    setSelectedPlayers(prev => {
+      const arr = [...prev];
+      const p1 = pairIndex * 2;
+      const p2 = pairIndex * 2 + 1;
+      const next1 = (pairIndex + 1) * 2;
+      const next2 = (pairIndex + 1) * 2 + 1;
+      [arr[p1], arr[next1]] = [arr[next1], arr[p1]];
+      [arr[p2], arr[next2]] = [arr[next2], arr[p2]];
+      return arr.map((s, i) => ({ ...s, selection_order: i + 1 }));
+    });
   };
 
   const handleReportScratch = async () => {
@@ -278,33 +292,27 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
       setError('Veuillez décrire la situation');
       return;
     }
-
     setReportingScratch(true);
     setError(null);
-
     try {
-      const { error: insertError } = await supabase
-        .from('scratch_notifications')
-        .insert({
-          match_id: selectedMatch.id,
-          team_id: captain.team_id,
-          captain_id: captain.id,
-          message: scratchMessage.trim(),
-          status: 'pending',
-        });
-
+      const { error: insertError } = await supabase.from('scratch_notifications').insert({
+        match_id: selectedMatch.id,
+        team_id: captain.team_id,
+        captain_id: captain.id,
+        message: scratchMessage.trim(),
+        status: 'pending',
+      });
       if (insertError) throw insertError;
-
       setSuccess(true);
       setShowScratchDialog(false);
       setScratchMessage('');
       setTimeout(() => {
         setSuccess(false);
-        setError('Notification envoyée à l\'administrateur. Vous pourrez modifier votre sélection une fois la demande acceptée.');
+        setError("Notification envoyée à l'administrateur. Vous pourrez modifier votre sélection une fois la demande acceptée.");
       }, 2000);
     } catch (err) {
       console.error('Error reporting scratch:', err);
-      setError('Erreur lors de l\'envoi de la notification');
+      setError("Erreur lors de l'envoi de la notification");
     } finally {
       setReportingScratch(false);
     }
@@ -312,16 +320,23 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
 
   const handleSave = async () => {
     if (!selectedMatch) return;
-
     setSaving(true);
     setError(null);
-
     try {
       const maxPlayers = getMaxPlayers(selectedMatch);
       if (selectedPlayers.length !== maxPlayers) {
         setError(`Vous devez sélectionner exactement ${maxPlayers} joueurs`);
         setSaving(false);
         return;
+      }
+
+      if (selectedMatch.is_final) {
+        const uniqueIds = new Set(selectedPlayers.map(s => s.player_id));
+        if (uniqueIds.size !== maxPlayers) {
+          setError('Un joueur ne peut pas être sélectionné deux fois');
+          setSaving(false);
+          return;
+        }
       }
 
       await supabase
@@ -337,10 +352,7 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
         selection_order: index + 1,
       }));
 
-      const { error: insertError } = await supabase
-        .from('match_player_selections')
-        .insert(selectionsToInsert);
-
+      const { error: insertError } = await supabase.from('match_player_selections').insert(selectionsToInsert);
       if (insertError) throw insertError;
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -365,7 +377,7 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       console.error('Error saving selections:', err);
-      setError('Erreur lors de l\'enregistrement de la sélection');
+      setError("Erreur lors de l'enregistrement de la sélection");
     } finally {
       setSaving(false);
     }
@@ -373,16 +385,23 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const isPlayerSelected = (playerId: string) => {
-    return selectedPlayers.some(s => s.player_id === playerId);
+  const isPlayerSelected = (playerId: string) => selectedPlayers.some(s => s.player_id === playerId);
+
+  const getPlayerById = (id: string) => availablePlayers.find(p => p.id === id);
+
+  const getPairs = () => {
+    const pairs: [Selection, Selection | null][] = [];
+    for (let i = 0; i < selectedPlayers.length; i += 2) {
+      pairs.push([selectedPlayers[i], selectedPlayers[i + 1] || null]);
+    }
+    return pairs;
   };
+
+  const regularMatches = matches.filter(m => !m.is_final);
+  const finalMatches = matches.filter(m => m.is_final);
 
   if (loading) {
     return (
@@ -411,65 +430,116 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">Choisir une rencontre</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {matches.map((match) => {
-            const locked = isMatchLocked(match.match_date, match.selection_unlocked_until);
-            const daysUntil = getDaysUntilLock(match.match_date);
-            return (
-              <button
-                key={match.id}
-                onClick={() => setSelectedMatch(match)}
-                disabled={locked && !isAdmin}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  selectedMatch?.id === match.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : (locked && !isAdmin)
-                    ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
-                    : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center space-x-2 mb-2">
-                  <Calendar className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-700">
-                    Journée {match.round_number}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 mb-2">{formatDate(match.match_date)}</p>
-                <p className="text-sm font-semibold text-slate-900">
-                  {match.is_home ? 'Domicile' : 'Extérieur'} vs {match.opponent_name}
-                </p>
-                {!isAdmin && (
-                  <>
-                    {match.selection_unlocked_until && new Date(match.selection_unlocked_until) > new Date() ? (
-                      <p className="text-xs text-emerald-600 mt-2 font-medium">
-                        Déverrouillé par l'admin
-                      </p>
-                    ) : locked ? (
-                      <p className="text-xs text-red-600 mt-2">Sélection verrouillée</p>
-                    ) : daysUntil <= 7 && daysUntil > 0 ? (
-                      <p className="text-xs text-amber-600 mt-2">
-                        Verrouillage vendredi {getLockDeadline(match.match_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à 17h
-                      </p>
-                    ) : null}
-                  </>
-                )}
-              </button>
-            );
-          })}
+      {regularMatches.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Journées régulières</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {regularMatches.map((match) => {
+              const locked = isMatchLocked(match.match_date, match.selection_unlocked_until);
+              const daysUntil = getDaysUntilLock(match.match_date);
+              return (
+                <button
+                  key={match.id}
+                  onClick={() => setSelectedMatch(match)}
+                  disabled={locked && !isAdmin}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    selectedMatch?.id === match.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : locked && !isAdmin
+                      ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
+                      : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Calendar className="w-4 h-4 text-slate-500" />
+                    <span className="text-sm font-medium text-slate-700">Journée {match.round_number}</span>
+                  </div>
+                  <p className="text-xs text-slate-600 mb-2">{formatDate(match.match_date)}</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {match.is_home ? 'Domicile' : 'Extérieur'} vs {match.opponent_name}
+                  </p>
+                  {!isAdmin && (
+                    <>
+                      {match.selection_unlocked_until && new Date(match.selection_unlocked_until) > new Date() ? (
+                        <p className="text-xs text-emerald-600 mt-2 font-medium">Déverrouillé par l'admin</p>
+                      ) : locked ? (
+                        <p className="text-xs text-red-600 mt-2">Sélection verrouillée</p>
+                      ) : daysUntil <= 7 && daysUntil > 0 ? (
+                        <p className="text-xs text-amber-600 mt-2">
+                          Verrouillage vendredi {getLockDeadline(match.match_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à 17h
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
+
+      {finalMatches.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-amber-200 p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
+            <span className="text-amber-500">★</span>
+            Finales
+          </h3>
+          <p className="text-sm text-slate-500 mb-4">5 foursomes — sélectionnez 10 joueurs groupés par paires</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {finalMatches.map((match) => {
+              const locked = isMatchLocked(match.match_date, match.selection_unlocked_until);
+              const daysUntil = getDaysUntilLock(match.match_date);
+              return (
+                <button
+                  key={match.id}
+                  onClick={() => setSelectedMatch(match)}
+                  disabled={locked && !isAdmin}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    selectedMatch?.id === match.id
+                      ? 'border-amber-500 bg-amber-50'
+                      : locked && !isAdmin
+                      ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
+                      : 'border-amber-200 hover:border-amber-400 hover:bg-amber-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2 mb-2">
+                    <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">
+                      {MATCH_TYPE_LABELS[match.match_type] || 'Finale'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 mb-2">{formatDate(match.match_date)}</p>
+                  <p className="text-sm font-semibold text-slate-900">vs {match.opponent_name}</p>
+                  {!isAdmin && (
+                    <>
+                      {locked ? (
+                        <p className="text-xs text-red-600 mt-2">Sélection verrouillée</p>
+                      ) : daysUntil <= 7 && daysUntil > 0 ? (
+                        <p className="text-xs text-amber-600 mt-2">
+                          Verrouillage vendredi {getLockDeadline(match.match_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à 17h
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {selectedMatch && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">
-                Journée {selectedMatch.round_number} - {formatDate(selectedMatch.match_date)}
+                {selectedMatch.is_final
+                  ? MATCH_TYPE_LABELS[selectedMatch.match_type] || 'Finale'
+                  : `Journée ${selectedMatch.round_number}`}
+                {' '}- {formatDate(selectedMatch.match_date)}
               </h3>
               <p className="text-sm text-slate-600">
-                {selectedMatch.is_home ? 'Domicile' : 'Extérieur'} vs {selectedMatch.opponent_name}
+                {selectedMatch.is_final ? '' : (selectedMatch.is_home ? 'Domicile' : 'Extérieur') + ' '}
+                vs {selectedMatch.opponent_name}
               </p>
             </div>
             <div className="flex items-center space-x-2 text-sm">
@@ -481,12 +551,10 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
           </div>
 
           {!canModifySelection() && !hasAcknowledgedScratch && !isAdmin && (
-            <div className="space-y-3">
+            <div className="space-y-3 mb-4">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start space-x-2">
                 <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-800">
-                  La sélection est verrouillée le vendredi 17h avant la rencontre.
-                </p>
+                <p className="text-sm text-amber-800">La sélection est verrouillée le vendredi 17h avant la rencontre.</p>
               </div>
               <button
                 onClick={() => setShowScratchDialog(true)}
@@ -501,64 +569,61 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
           {hasAcknowledgedScratch && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4 flex items-start space-x-2">
               <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-emerald-800">
-                Votre demande de modification a été acceptée. Vous pouvez maintenant modifier votre sélection.
-              </p>
+              <p className="text-sm text-emerald-800">Votre demande a été acceptée. Vous pouvez modifier votre sélection.</p>
             </div>
           )}
 
-          {canModifySelection() && !isAdmin && getDaysUntilLock(selectedMatch.match_date) <= 7 && getDaysUntilLock(selectedMatch.match_date) > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start space-x-2">
-              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-blue-800">
-                La sélection sera verrouillée le vendredi {getLockDeadline(selectedMatch.match_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à 17h.
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-2 mb-6">
-            {availablePlayers.map((player) => {
-              const selected = isPlayerSelected(player.id);
-              return (
-                <button
-                  key={player.id}
-                  onClick={() => togglePlayerSelection(player.id)}
-                  disabled={!canModifySelection()}
-                  className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                    selected
-                      ? 'border-blue-500 bg-blue-50'
-                      : canModifySelection()
-                      ? 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
-                      : 'border-slate-200 bg-slate-50 cursor-not-allowed'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {selected && (
-                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {selectedPlayers.find(s => s.player_id === player.id)?.selection_order}
+          {selectedMatch.is_final ? (
+            <FinalSelectionView
+              availablePlayers={availablePlayers}
+              selectedPlayers={selectedPlayers}
+              canModify={canModifySelection()}
+              onToggle={togglePlayerSelection}
+              onMovePairUp={movePairUp}
+              onMovePairDown={movePairDown}
+              getPairs={getPairs}
+              getPlayerById={getPlayerById}
+              isPlayerSelected={isPlayerSelected}
+            />
+          ) : (
+            <div className="space-y-2 mb-6">
+              {availablePlayers.map((player) => {
+                const selected = isPlayerSelected(player.id);
+                return (
+                  <button
+                    key={player.id}
+                    onClick={() => togglePlayerSelection(player.id)}
+                    disabled={!canModifySelection()}
+                    className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                      selected
+                        ? 'border-blue-500 bg-blue-50'
+                        : canModifySelection()
+                        ? 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
+                        : 'border-slate-200 bg-slate-50 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        {selected && (
+                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            {selectedPlayers.find(s => s.player_id === player.id)?.selection_order}
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-slate-900">{player.first_name} {player.last_name}</p>
+                          <p className="text-sm text-slate-600">Index: {player.handicap_index} - {player.gender === 'M' ? 'Homme' : 'Femme'}</p>
                         </div>
-                      )}
-                      <div>
-                        <p className="font-medium text-slate-900">
-                          {player.first_name} {player.last_name}
-                        </p>
-                        <p className="text-sm text-slate-600">
-                          Index: {player.handicap_index} - {player.gender === 'M' ? 'Homme' : 'Femme'}
-                        </p>
                       </div>
+                      {selected && canModifySelection() && <X className="w-5 h-5 text-slate-400" />}
                     </div>
-                    {selected && canModifySelection() && (
-                      <X className="w-5 h-5 text-slate-400" />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {canModifySelection() && (
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end space-x-3 mt-4">
               <button
                 onClick={() => setSelectedPlayers([])}
                 className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
@@ -585,26 +650,19 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
             <p className="text-sm text-slate-600 mb-4">
               Expliquez la situation à l'administrateur. Une fois votre demande acceptée, vous pourrez modifier votre sélection.
             </p>
-
             <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Description de la situation
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Description de la situation</label>
               <textarea
                 value={scratchMessage}
                 onChange={(e) => setScratchMessage(e.target.value)}
-                placeholder="Ex: Le joueur X s'est blessé et ne peut pas participer..."
+                placeholder="Ex: Le joueur X s'est blessé..."
                 rows={4}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               />
             </div>
-
             <div className="flex gap-3">
               <button
-                onClick={() => {
-                  setShowScratchDialog(false);
-                  setScratchMessage('');
-                }}
+                onClick={() => { setShowScratchDialog(false); setScratchMessage(''); }}
                 className="flex-1 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium transition-colors"
               >
                 Annuler
@@ -612,7 +670,7 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
               <button
                 onClick={handleReportScratch}
                 disabled={reportingScratch || !scratchMessage.trim()}
-                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors disabled:opacity-50"
               >
                 {reportingScratch ? 'Envoi...' : 'Envoyer'}
               </button>
@@ -620,6 +678,163 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+interface FinalSelectionViewProps {
+  availablePlayers: Player[];
+  selectedPlayers: Selection[];
+  canModify: boolean;
+  onToggle: (id: string) => void;
+  onMovePairUp: (pairIndex: number) => void;
+  onMovePairDown: (pairIndex: number, total: number) => void;
+  getPairs: () => [Selection, Selection | null][];
+  getPlayerById: (id: string) => Player | undefined;
+  isPlayerSelected: (id: string) => boolean;
+}
+
+function FinalSelectionView({
+  availablePlayers,
+  selectedPlayers,
+  canModify,
+  onToggle,
+  onMovePairUp,
+  onMovePairDown,
+  getPairs,
+  getPlayerById,
+  isPlayerSelected,
+}: FinalSelectionViewProps) {
+  const pairs = getPairs();
+  const completePairs = pairs.filter(([, p2]) => p2 !== null);
+  const incompletePair = pairs.find(([, p2]) => p2 === null);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div>
+        <h4 className="text-sm font-semibold text-slate-700 mb-3">
+          Joueurs disponibles ({selectedPlayers.length}/10 sélectionnés)
+        </h4>
+        <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
+          {availablePlayers.map((player) => {
+            const selected = isPlayerSelected(player.id);
+            const selOrder = selectedPlayers.find(s => s.player_id === player.id)?.selection_order;
+            const pairNum = selOrder ? Math.ceil(selOrder / 2) : null;
+            return (
+              <button
+                key={player.id}
+                onClick={() => onToggle(player.id)}
+                disabled={!canModify}
+                className={`w-full p-2.5 rounded-lg border text-left transition-all ${
+                  selected
+                    ? 'border-amber-400 bg-amber-50'
+                    : canModify
+                    ? 'border-slate-200 hover:border-amber-300 hover:bg-slate-50'
+                    : 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-60'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {selected && pairNum && (
+                      <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {pairNum}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{player.first_name} {player.last_name}</p>
+                      <p className="text-xs text-slate-500">Index {player.handicap_index}</p>
+                    </div>
+                  </div>
+                  {selected && canModify && <X className="w-4 h-4 text-slate-400" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-sm font-semibold text-slate-700 mb-3">
+          Paires constituées ({completePairs.length}/5)
+        </h4>
+
+        {pairs.length === 0 && (
+          <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">
+            <UserPlus className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            Cliquez sur des joueurs pour former vos paires
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {completePairs.map(([p1, p2], pairIndex) => {
+            const player1 = getPlayerById(p1.player_id);
+            const player2 = p2 ? getPlayerById(p2.player_id) : null;
+            return (
+              <div key={pairIndex} className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                    Paire {pairIndex + 1}
+                  </span>
+                  {canModify && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => onMovePairUp(pairIndex)}
+                        disabled={pairIndex === 0}
+                        className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 transition-colors"
+                        title="Monter"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        onClick={() => onMovePairDown(pairIndex, completePairs.length)}
+                        disabled={pairIndex === completePairs.length - 1}
+                        className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 transition-colors"
+                        title="Descendre"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-white rounded p-2 text-sm">
+                    <p className="font-medium text-slate-900">{player1?.first_name} {player1?.last_name}</p>
+                    <p className="text-xs text-slate-500">Index {player1?.handicap_index}</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                  <div className="flex-1 bg-white rounded p-2 text-sm">
+                    <p className="font-medium text-slate-900">{player2?.first_name} {player2?.last_name}</p>
+                    <p className="text-xs text-slate-500">Index {player2?.handicap_index}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {incompletePair && (
+            <div className="bg-amber-50 border border-amber-300 border-dashed rounded-lg p-3">
+              <span className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 block">
+                Paire {completePairs.length + 1} — en cours
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-white rounded p-2 text-sm">
+                  <p className="font-medium text-slate-900">
+                    {getPlayerById(incompletePair[0].player_id)?.first_name}{' '}
+                    {getPlayerById(incompletePair[0].player_id)?.last_name}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Index {getPlayerById(incompletePair[0].player_id)?.handicap_index}
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                <div className="flex-1 border-2 border-dashed border-amber-300 rounded p-2 text-sm text-center text-amber-500">
+                  Sélectionner le 2e joueur
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

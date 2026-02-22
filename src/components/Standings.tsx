@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trophy, TrendingUp, TrendingDown, Minus, FileDown, RefreshCw } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Minus, FileDown, RefreshCw, Medal } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type StandingsProps = {
@@ -19,8 +19,25 @@ type TeamStanding = {
   away_wins: number;
 };
 
+type FinalResult = {
+  match_type: 'final_1st' | 'final_3rd' | 'final_5th';
+  team1_club: string;
+  team2_club: string;
+  team1_points: number;
+  team2_points: number;
+  status: string;
+  winner?: string;
+};
+
+const MATCH_TYPE_LABELS: Record<string, string> = {
+  final_1st: 'Finale 1re / 2e place',
+  final_3rd: 'Match 3e / 4e place',
+  final_5th: 'Match 5e / 6e place',
+};
+
 export default function Standings({ division }: StandingsProps) {
   const [standings, setStandings] = useState<TeamStanding[]>([]);
+  const [finalResults, setFinalResults] = useState<FinalResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -143,6 +160,49 @@ export default function Standings({ division }: StandingsProps) {
       });
 
       setStandings(standingsData);
+
+      const { data: finalsData } = await supabase
+        .from('matches')
+        .select(`
+          match_type,
+          team1_points,
+          team2_points,
+          status,
+          team1:teams!matches_team1_id_fkey(club:clubs(name)),
+          team2:teams!matches_team2_id_fkey(club:clubs(name))
+        `)
+        .eq('season_id', season.id)
+        .eq('division', division)
+        .eq('round_number', 6)
+        .in('match_type', ['final_1st', 'final_3rd', 'final_5th'])
+        .order('match_type');
+
+      if (finalsData) {
+        const fr: FinalResult[] = finalsData.map((m: any) => {
+          const t1 = m.team1?.club?.name || '';
+          const t2 = m.team2?.club?.name || '';
+          const p1 = m.team1_points || 0;
+          const p2 = m.team2_points || 0;
+          let winner: string | undefined;
+          if (m.status === 'completed') {
+            if (p1 > p2) winner = t1;
+            else if (p2 > p1) winner = t2;
+            else winner = undefined;
+          }
+          return {
+            match_type: m.match_type,
+            team1_club: t1,
+            team2_club: t2,
+            team1_points: p1,
+            team2_points: p2,
+            status: m.status,
+            winner,
+          };
+        });
+        const order = ['final_1st', 'final_3rd', 'final_5th'];
+        fr.sort((a, b) => order.indexOf(a.match_type) - order.indexOf(b.match_type));
+        setFinalResults(fr);
+      }
     } catch (error) {
       console.error('Error loading standings:', error);
     } finally {
@@ -269,7 +329,14 @@ export default function Standings({ division }: StandingsProps) {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-slate-900">{team.club_name}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-slate-900">{team.club_name}</div>
+                      {team.position <= 2 && (
+                        <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">
+                          Finale
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-slate-600">
                     {team.matches_played}
@@ -308,6 +375,43 @@ export default function Standings({ division }: StandingsProps) {
             </tbody>
           </table>
         </div>
+
+        {finalResults.length > 0 && (
+          <div className="p-6 border-t border-slate-200 bg-gradient-to-r from-amber-50 to-orange-50">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <Medal className="h-4 w-4 text-amber-600" />
+              Résultats des finales
+            </h3>
+            <div className="space-y-2">
+              {finalResults.map((fr) => (
+                <div key={fr.match_type} className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-200">
+                  <div>
+                    <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-0.5">
+                      {MATCH_TYPE_LABELS[fr.match_type]}
+                    </p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {fr.team1_club} vs {fr.team2_club}
+                    </p>
+                    {fr.winner && (
+                      <p className="text-xs text-emerald-600 font-semibold mt-0.5">
+                        Vainqueur : {fr.winner}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    {fr.status === 'completed' ? (
+                      <span className="text-xl font-bold text-slate-900">
+                        {fr.team1_points} – {fr.team2_points}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-slate-400">À jouer</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="p-6 bg-slate-50 border-t border-slate-200">
           <h3 className="text-sm font-semibold text-slate-900 mb-3">Règlement des points</h3>

@@ -90,17 +90,21 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Team 2 must select exactly ${requiredPlayers} players`);
     }
 
-    const team1Selections = team1SelectionsRaw.sort((a, b) => {
-      const handicapA = (a.players as any).handicap_index;
-      const handicapB = (b.players as any).handicap_index;
-      return handicapA - handicapB;
-    });
+    const team1Selections = isFinals
+      ? team1SelectionsRaw.sort((a, b) => a.selection_order - b.selection_order)
+      : team1SelectionsRaw.sort((a, b) => {
+          const handicapA = (a.players as any).handicap_index;
+          const handicapB = (b.players as any).handicap_index;
+          return handicapA - handicapB;
+        });
 
-    const team2Selections = team2SelectionsRaw.sort((a, b) => {
-      const handicapA = (a.players as any).handicap_index;
-      const handicapB = (b.players as any).handicap_index;
-      return handicapA - handicapB;
-    });
+    const team2Selections = isFinals
+      ? team2SelectionsRaw.sort((a, b) => a.selection_order - b.selection_order)
+      : team2SelectionsRaw.sort((a, b) => {
+          const handicapA = (a.players as any).handicap_index;
+          const handicapB = (b.players as any).handicap_index;
+          return handicapA - handicapB;
+        });
 
     await supabase
       .from('individual_matches')

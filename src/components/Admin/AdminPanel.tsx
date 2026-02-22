@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building2, Users, Settings, Edit, MapPin, Shield, Database, ClipboardList, UserCheck } from 'lucide-react';
+import { Building2, Users, Settings, Edit, MapPin, Shield, Database, ClipboardList, UserCheck, Trophy } from 'lucide-react';
 import ClubManagement from './ClubManagement';
 import TeamManagement from './TeamManagement';
 import ConfigurationValidation from './ConfigurationValidation';
@@ -8,8 +8,9 @@ import CourseManagement from './CourseManagement';
 import DatabaseBackup from './DatabaseBackup';
 import ResultsEntry from '../ResultsEntry';
 import AdminTeamSelection from './AdminTeamSelection';
+import FinalsManagement from './FinalsManagement';
 
-type AdminSection = 'clubs' | 'captains' | 'calendar' | 'courses' | 'validation' | 'backup' | 'results' | 'selections';
+type AdminSection = 'clubs' | 'captains' | 'calendar' | 'courses' | 'validation' | 'backup' | 'results' | 'selections' | 'finals';
 
 interface AdminPanelProps {
   division: 'champe1' | 'champe2';
@@ -25,6 +26,7 @@ export default function AdminPanel({ division }: AdminPanelProps) {
     { id: 'courses' as AdminSection, label: 'Parcours', icon: MapPin },
     { id: 'selections' as AdminSection, label: 'Sélections', icon: UserCheck },
     { id: 'results' as AdminSection, label: 'Résultats', icon: ClipboardList },
+    { id: 'finals' as AdminSection, label: 'Finales', icon: Trophy },
     { id: 'validation' as AdminSection, label: 'Validation', icon: Shield },
     { id: 'backup' as AdminSection, label: 'Sauvegarde', icon: Database },
   ];
@@ -64,6 +66,7 @@ export default function AdminPanel({ division }: AdminPanelProps) {
           {activeSection === 'courses' && <CourseManagement />}
           {activeSection === 'selections' && <AdminTeamSelection />}
           {activeSection === 'results' && <ResultsEntry />}
+          {activeSection === 'finals' && <FinalsManagement division={division} />}
           {activeSection === 'validation' && <ConfigurationValidation />}
           {activeSection === 'backup' && <DatabaseBackup />}
         </div>
