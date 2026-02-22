@@ -46,6 +46,7 @@ export default function Standings({ division }: StandingsProps) {
         .from('teams')
         .select(`
           id,
+          club_id,
           club:clubs(name)
         `)
         .eq('season_id', season.id)
@@ -60,17 +61,19 @@ export default function Standings({ division }: StandingsProps) {
         teams.map(async (team) => {
           const { data: homeMatches } = await supabase
             .from('matches')
-            .select('team1_points, team2_points, status, division')
+            .select('team1_points, team2_points, host_club_id')
             .eq('team1_id', team.id)
             .eq('division', division)
             .eq('status', 'completed');
 
           const { data: awayMatches } = await supabase
             .from('matches')
-            .select('team1_points, team2_points, status, division')
+            .select('team1_points, team2_points, host_club_id')
             .eq('team2_id', team.id)
             .eq('division', division)
             .eq('status', 'completed');
+
+          const teamClubId = (team as any).club_id;
 
           let totalPoints = 0;
           let wins = 0;
@@ -83,10 +86,12 @@ export default function Standings({ division }: StandingsProps) {
             const team1Score = match.team1_points || 0;
             const team2Score = match.team2_points || 0;
             totalPoints += team1Score;
+            const isHome = match.host_club_id === teamClubId;
 
             if (team1Score > team2Score) {
               wins++;
-              homeWins++;
+              if (isHome) homeWins++;
+              else awayWins++;
             } else if (team1Score === team2Score) {
               draws++;
             } else {
@@ -98,10 +103,12 @@ export default function Standings({ division }: StandingsProps) {
             const team1Score = match.team1_points || 0;
             const team2Score = match.team2_points || 0;
             totalPoints += team2Score;
+            const isHome = match.host_club_id === teamClubId;
 
             if (team2Score > team1Score) {
               wins++;
-              awayWins++;
+              if (isHome) homeWins++;
+              else awayWins++;
             } else if (team2Score === team1Score) {
               draws++;
             } else {
