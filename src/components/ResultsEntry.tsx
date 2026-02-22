@@ -14,7 +14,15 @@ interface Match {
   host_club_id: string;
   is_host: boolean;
   division: string;
+  match_type: string;
+  is_final: boolean;
 }
+
+const MATCH_TYPE_LABELS: Record<string, string> = {
+  final_1st: 'Finale 1re / 2e place',
+  final_3rd: 'Match 3e / 4e place',
+  final_5th: 'Match 5e / 6e place',
+};
 
 interface IndividualMatch {
   id: string;
@@ -57,6 +65,7 @@ export default function ResultsEntry() {
   const [success, setSuccess] = useState(false);
   const [selectedDivision, setSelectedDivision] = useState<'champe1' | 'champe2'>('champe1');
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [showFinalsOnly, setShowFinalsOnly] = useState(false);
 
   useEffect(() => {
     if (captain || isAdmin) {
@@ -94,11 +103,11 @@ export default function ResultsEntry() {
           team2_id,
           host_club_id,
           division,
+          match_type,
           team1:teams!matches_team1_id_fkey(club:clubs(name)),
           team2:teams!matches_team2_id_fkey(club:clubs(name))
         `)
-        .eq('season_id', seasonData.id)
-        .lte('round_number', 5);
+        .eq('season_id', seasonData.id);
 
       if (!isAdmin && captain) {
         query = query
@@ -123,6 +132,8 @@ export default function ResultsEntry() {
         host_club_id: m.host_club_id,
         is_host: captain ? m.host_club_id === captain.club_id : true,
         division: m.division,
+        match_type: m.match_type || 'regular',
+        is_final: m.round_number === 6,
       }));
 
       setMatches(formatted);
@@ -330,13 +341,14 @@ export default function ResultsEntry() {
           throw new Error('Chaque joueur de l\'équipe 2 ne peut être sélectionné qu\'une seule fois');
         }
 
-        // Check that all 8 matches have players assigned
-        if (team1UsedPlayers.length !== 8) {
-          throw new Error(`Tous les matchs de l'équipe 1 doivent avoir un joueur assigné (${team1UsedPlayers.length}/8)`);
+        // Check that all matches have players assigned
+        const expectedPlayers = selectedMatch.is_final ? 10 : 8;
+        if (team1UsedPlayers.length !== expectedPlayers) {
+          throw new Error(`Tous les matchs de l'équipe 1 doivent avoir un joueur assigné (${team1UsedPlayers.length}/${expectedPlayers})`);
         }
 
-        if (team2UsedPlayers.length !== 8) {
-          throw new Error(`Tous les matchs de l'équipe 2 doivent avoir un joueur assigné (${team2UsedPlayers.length}/8)`);
+        if (team2UsedPlayers.length !== expectedPlayers) {
+          throw new Error(`Tous les matchs de l'équipe 2 doivent avoir un joueur assigné (${team2UsedPlayers.length}/${expectedPlayers})`);
         }
 
         // Check that all selected players are from the available players
@@ -451,8 +463,9 @@ export default function ResultsEntry() {
   const filteredMatches = isAdmin
     ? matches.filter(match => {
         const divisionMatch = match.division === selectedDivision;
+        if (showFinalsOnly) return divisionMatch && match.is_final;
         const dayMatch = selectedDay === null || match.round_number === selectedDay;
-        return divisionMatch && dayMatch;
+        return divisionMatch && !match.is_final && dayMatch;
       })
     : matches;
 
@@ -501,10 +514,11 @@ export default function ResultsEntry() {
                 <button
                   onClick={() => {
                     setSelectedDay(null);
+                    setShowFinalsOnly(false);
                     setSelectedMatch(null);
                   }}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    selectedDay === null
+                    selectedDay === null && !showFinalsOnly
                       ? 'bg-emerald-600 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
@@ -516,10 +530,11 @@ export default function ResultsEntry() {
                     key={day}
                     onClick={() => {
                       setSelectedDay(day);
+                      setShowFinalsOnly(false);
                       setSelectedMatch(null);
                     }}
                     className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      selectedDay === day
+                      selectedDay === day && !showFinalsOnly
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -527,6 +542,22 @@ export default function ResultsEntry() {
                     J{day}
                   </button>
                 ))}
+                {matches.some(m => m.is_final && m.division === selectedDivision) && (
+                  <button
+                    onClick={() => {
+                      setShowFinalsOnly(true);
+                      setSelectedDay(null);
+                      setSelectedMatch(null);
+                    }}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      showFinalsOnly
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'text-amber-700 hover:bg-amber-50'
+                    }`}
+                  >
+                    Finales
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -549,7 +580,7 @@ export default function ResultsEntry() {
       <div className="bg-white rounded-xl shadow-md border border-slate-200 p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-4">
           {isAdmin
-            ? `Sélectionner une rencontre - ${selectedDivision === 'champe1' ? 'Champe 1' : 'Champe 2'}${selectedDay !== null ? ` - J${selectedDay}` : ' - Tous les jours'}`
+            ? `Sélectionner une rencontre - ${selectedDivision === 'champe1' ? 'Champe 1' : 'Champe 2'}${showFinalsOnly ? ' - Finales' : selectedDay !== null ? ` - J${selectedDay}` : ' - Tous les jours'}`
             : 'Sélectionner une rencontre à domicile'
           }
         </h3>
@@ -583,8 +614,12 @@ export default function ResultsEntry() {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="px-3 py-1 bg-emerald-600 text-white text-sm font-bold rounded-lg">
-                      J{match.round_number}
+                    <div className={`px-3 py-1 text-white text-sm font-bold rounded-lg ${
+                      match.is_final ? 'bg-amber-500' : 'bg-emerald-600'
+                    }`}>
+                      {match.is_final
+                        ? (MATCH_TYPE_LABELS[match.match_type] || 'Finale')
+                        : `J${match.round_number}`}
                     </div>
                     <p className="text-sm text-slate-600 font-medium">{formatDate(match.match_date)}</p>
                   </div>
