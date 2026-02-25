@@ -301,7 +301,7 @@ export default function ScorecardGenerator({
   </div>
 
   <div class="footer">
-    2025, site réalisé par <a href="https://nexelans.fr" target="_blank">Nexelans</a>
+    2025, site réalisé par <a href="https://nxlforge.com/" target="_blank">NxlForge</a>, le studio IA de <a href="https://www.nexelans.fr/" target="_blank">Nexelans</a>
   </div>
 </body>
 </html>`;

@@ -220,7 +220,16 @@ function App() {
           <div className="text-center text-sm text-slate-500">
             2025, site réalisé par{' '}
             <a
-              href="https://www.nexelans.fr"
+              href="https://nxlforge.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
+            >
+              NxlForge
+            </a>
+            , le studio IA de{' '}
+            <a
+              href="https://www.nexelans.fr/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
