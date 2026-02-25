@@ -91,7 +91,17 @@ Deno.serve(async (req: Request) => {
     }
 
     const team1Selections = isFinals
-      ? team1SelectionsRaw.sort((a, b) => a.selection_order - b.selection_order)
+      ? (() => {
+          const sorted = team1SelectionsRaw.sort((a, b) => a.selection_order - b.selection_order);
+          const pairs: typeof sorted[] = [];
+          for (let i = 0; i < sorted.length; i += 2) pairs.push(sorted.slice(i, i + 2));
+          pairs.sort((pairA, pairB) => {
+            const avgA = ((pairA[0].players as any).handicap_index + (pairA[1].players as any).handicap_index) / 2;
+            const avgB = ((pairB[0].players as any).handicap_index + (pairB[1].players as any).handicap_index) / 2;
+            return avgA - avgB;
+          });
+          return pairs.flat();
+        })()
       : team1SelectionsRaw.sort((a, b) => {
           const handicapA = (a.players as any).handicap_index;
           const handicapB = (b.players as any).handicap_index;
@@ -99,7 +109,17 @@ Deno.serve(async (req: Request) => {
         });
 
     const team2Selections = isFinals
-      ? team2SelectionsRaw.sort((a, b) => a.selection_order - b.selection_order)
+      ? (() => {
+          const sorted = team2SelectionsRaw.sort((a, b) => a.selection_order - b.selection_order);
+          const pairs: typeof sorted[] = [];
+          for (let i = 0; i < sorted.length; i += 2) pairs.push(sorted.slice(i, i + 2));
+          pairs.sort((pairA, pairB) => {
+            const avgA = ((pairA[0].players as any).handicap_index + (pairA[1].players as any).handicap_index) / 2;
+            const avgB = ((pairB[0].players as any).handicap_index + (pairB[1].players as any).handicap_index) / 2;
+            return avgA - avgB;
+          });
+          return pairs.flat();
+        })()
       : team2SelectionsRaw.sort((a, b) => {
           const handicapA = (a.players as any).handicap_index;
           const handicapB = (b.players as any).handicap_index;

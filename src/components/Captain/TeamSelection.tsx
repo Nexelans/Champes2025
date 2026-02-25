@@ -754,9 +754,14 @@ function FinalSelectionView({
       </div>
 
       <div>
-        <h4 className="text-sm font-semibold text-slate-700 mb-3">
-          Paires constituées ({completePairs.length}/5)
-        </h4>
+        <div className="flex items-start justify-between mb-3">
+          <h4 className="text-sm font-semibold text-slate-700">
+            Paires constituées ({completePairs.length}/5)
+          </h4>
+          <p className="text-xs text-slate-500 italic text-right max-w-[180px]">
+            Les paires seront classées par index croissant lors de la génération des matchs
+          </p>
+        </div>
 
         {pairs.length === 0 && (
           <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center text-slate-400 text-sm">
