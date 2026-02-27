@@ -147,6 +147,8 @@ export default function MatchesView({ division }: MatchesViewProps) {
         .from('individual_matches')
         .select(`
           match_order,
+          team1_player_id,
+          team2_player_id,
           result,
           starting_hole,
           team1_points,
@@ -166,25 +168,28 @@ export default function MatchesView({ division }: MatchesViewProps) {
       if (detailsError) throw detailsError;
 
       if (individualMatchesData) {
-        const formatted: IndividualMatch[] = individualMatchesData.map((im: any) => ({
-          match_order: im.match_order,
-          team1_player_name: im.team1_player ? `${im.team1_player.first_name} ${im.team1_player.last_name}` : 'Forfait',
-          team2_player_name: im.team2_player ? `${im.team2_player.first_name} ${im.team2_player.last_name}` : 'Forfait',
-          team1_player2_name: im.team1_player2
-            ? `${im.team1_player2.first_name} ${im.team1_player2.last_name}`
-            : undefined,
-          team1_handicap: im.team1_handicap,
-          team2_handicap: im.team2_handicap,
-          strokes_given: im.strokes_given,
-          strokes_receiver: im.strokes_receiver,
-          team2_player2_name: im.team2_player2
-            ? `${im.team2_player2.first_name} ${im.team2_player2.last_name}`
-            : undefined,
-          result: im.result,
-          starting_hole: im.starting_hole,
-          team1_points: im.team1_points || 0,
-          team2_points: im.team2_points || 0,
-        }));
+        const formatted: IndividualMatch[] = individualMatchesData.map((im: any) => {
+          const isForfeit = !im.team1_player_id || !im.team2_player_id;
+          return {
+            match_order: im.match_order,
+            team1_player_name: im.team1_player ? `${im.team1_player.first_name} ${im.team1_player.last_name}` : 'Forfait',
+            team2_player_name: im.team2_player ? `${im.team2_player.first_name} ${im.team2_player.last_name}` : 'Forfait',
+            team1_player2_name: im.team1_player2
+              ? `${im.team1_player2.first_name} ${im.team1_player2.last_name}`
+              : undefined,
+            team1_handicap: im.team1_handicap,
+            team2_handicap: im.team2_handicap,
+            strokes_given: im.strokes_given,
+            strokes_receiver: im.strokes_receiver,
+            team2_player2_name: im.team2_player2
+              ? `${im.team2_player2.first_name} ${im.team2_player2.last_name}`
+              : undefined,
+            result: isForfeit ? (im.team1_player_id ? 'team1_win' : 'team2_win') : im.result,
+            starting_hole: im.starting_hole,
+            team1_points: isForfeit ? (!im.team1_player_id ? 0 : 2) : (im.team1_points || 0),
+            team2_points: isForfeit ? (!im.team2_player_id ? 0 : 2) : (im.team2_points || 0),
+          };
+        });
         setIndividualMatches(formatted);
       }
     } catch (error) {
