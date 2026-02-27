@@ -177,27 +177,32 @@ export default function ResultsEntry() {
 
       if (error) throw error;
 
-      const formatted: IndividualMatch[] = data.map((im: any) => ({
-        id: im.id,
-        match_order: im.match_order,
-        team1_player_id: im.team1_player_id,
-        team2_player_id: im.team2_player_id,
-        team1_player2_id: im.team1_player2_id,
-        team2_player2_id: im.team2_player2_id,
-        team1_player_name: im.team1_player ? `${im.team1_player.first_name} ${im.team1_player.last_name}` : 'Forfait',
-        team2_player_name: im.team2_player ? `${im.team2_player.first_name} ${im.team2_player.last_name}` : 'Forfait',
-        team1_player2_name: im.team1_player2 ? `${im.team1_player2.first_name} ${im.team1_player2.last_name}` : undefined,
-        team2_player2_name: im.team2_player2 ? `${im.team2_player2.first_name} ${im.team2_player2.last_name}` : undefined,
-        team1_handicap: im.team1_handicap,
-        team2_handicap: im.team2_handicap,
-        strokes_given: im.strokes_given,
-        strokes_receiver: im.strokes_receiver,
-        result: im.result,
-        score_detail: im.score_detail,
-        starting_hole: im.starting_hole,
-        team1_points: im.team1_points,
-        team2_points: im.team2_points,
-      }));
+      const formatted: IndividualMatch[] = data.map((im: any) => {
+        const isForfeit = !im.team1_player_id || !im.team2_player_id;
+        const forfeitTeam1Points = !im.team1_player_id ? 0 : 2;
+        const forfeitTeam2Points = !im.team2_player_id ? 0 : 2;
+        return {
+          id: im.id,
+          match_order: im.match_order,
+          team1_player_id: im.team1_player_id,
+          team2_player_id: im.team2_player_id,
+          team1_player2_id: im.team1_player2_id,
+          team2_player2_id: im.team2_player2_id,
+          team1_player_name: im.team1_player ? `${im.team1_player.first_name} ${im.team1_player.last_name}` : 'Forfait',
+          team2_player_name: im.team2_player ? `${im.team2_player.first_name} ${im.team2_player.last_name}` : 'Forfait',
+          team1_player2_name: im.team1_player2 ? `${im.team1_player2.first_name} ${im.team1_player2.last_name}` : undefined,
+          team2_player2_name: im.team2_player2 ? `${im.team2_player2.first_name} ${im.team2_player2.last_name}` : undefined,
+          team1_handicap: im.team1_handicap,
+          team2_handicap: im.team2_handicap,
+          strokes_given: im.strokes_given,
+          strokes_receiver: im.strokes_receiver,
+          result: isForfeit ? (im.team1_player_id ? 'team1_win' : 'team2_win') : im.result,
+          score_detail: im.score_detail,
+          starting_hole: im.starting_hole,
+          team1_points: isForfeit ? forfeitTeam1Points : im.team1_points,
+          team2_points: isForfeit ? forfeitTeam2Points : im.team2_points,
+        };
+      });
 
       setIndividualMatches(formatted);
 
@@ -433,6 +438,8 @@ export default function ResultsEntry() {
       setSaving(false);
     }
   };
+
+  const isForfeitMatch = (im: IndividualMatch) => !im.team1_player_id || !im.team2_player_id;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -779,6 +786,22 @@ export default function ResultsEntry() {
                     <label className="block text-sm font-semibold text-slate-900 mb-3">
                       Résultat du match
                     </label>
+                    {isForfeitMatch(im) ? (
+                      <div className={`px-4 py-3 rounded-lg border-2 ${
+                        !im.team1_player_id
+                          ? 'bg-red-50 border-red-200'
+                          : 'bg-red-50 border-red-200'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-red-800">
+                            Forfait — {!im.team1_player_id ? selectedMatch.team2_club : selectedMatch.team1_club} gagne par forfait
+                          </span>
+                          <span className="font-bold text-red-800">
+                            {!im.team1_player_id ? '0 - 2 pts' : '2 - 0 pts'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
                     <div className="grid grid-cols-1 gap-2">
                       <button
                         type="button"
@@ -835,6 +858,7 @@ export default function ResultsEntry() {
                         </button>
                       )}
                     </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
