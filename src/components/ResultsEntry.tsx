@@ -797,7 +797,7 @@ export default function ResultsEntry() {
                             Forfait — {!im.team1_player_id ? selectedMatch.team2_club : selectedMatch.team1_club} gagne par forfait
                           </span>
                           <span className="font-bold text-red-800">
-                            {!im.team1_player_id ? '0 - 2 pts' : '2 - 0 pts'}
+                            {!im.team1_player_id ? '0 pt - 2 pts' : '2 pts - 0 pt'}
                           </span>
                         </div>
                       </div>
