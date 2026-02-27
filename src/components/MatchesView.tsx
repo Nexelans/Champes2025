@@ -168,8 +168,8 @@ export default function MatchesView({ division }: MatchesViewProps) {
       if (individualMatchesData) {
         const formatted: IndividualMatch[] = individualMatchesData.map((im: any) => ({
           match_order: im.match_order,
-          team1_player_name: `${im.team1_player?.first_name} ${im.team1_player?.last_name}`,
-          team2_player_name: `${im.team2_player?.first_name} ${im.team2_player?.last_name}`,
+          team1_player_name: im.team1_player ? `${im.team1_player.first_name} ${im.team1_player.last_name}` : 'Forfait',
+          team2_player_name: im.team2_player ? `${im.team2_player.first_name} ${im.team2_player.last_name}` : 'Forfait',
           team1_player2_name: im.team1_player2
             ? `${im.team1_player2.first_name} ${im.team1_player2.last_name}`
             : undefined,
