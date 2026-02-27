@@ -82,49 +82,44 @@ Deno.serve(async (req: Request) => {
       throw new Error('Error fetching player selections');
     }
 
-    if (!team1SelectionsRaw || team1SelectionsRaw.length !== requiredPlayers) {
-      throw new Error(`Team 1 must select exactly ${requiredPlayers} players`);
+    const team1Count = team1SelectionsRaw?.length ?? 0;
+    const team2Count = team2SelectionsRaw?.length ?? 0;
+
+    if (isFinals) {
+      if (team1Count > 0 && team1Count % 2 !== 0) {
+        throw new Error('Team 1 has an incomplete foursome pair');
+      }
+      if (team2Count > 0 && team2Count % 2 !== 0) {
+        throw new Error('Team 2 has an incomplete foursome pair');
+      }
     }
 
-    if (!team2SelectionsRaw || team2SelectionsRaw.length !== requiredPlayers) {
-      throw new Error(`Team 2 must select exactly ${requiredPlayers} players`);
+    if (team1Count === 0 && team2Count === 0) {
+      throw new Error('At least one team must have players selected');
     }
 
-    const team1Selections = isFinals
-      ? (() => {
-          const sorted = team1SelectionsRaw.sort((a, b) => a.selection_order - b.selection_order);
-          const pairs: typeof sorted[] = [];
-          for (let i = 0; i < sorted.length; i += 2) pairs.push(sorted.slice(i, i + 2));
-          pairs.sort((pairA, pairB) => {
-            const avgA = ((pairA[0].players as any).handicap_index + (pairA[1].players as any).handicap_index) / 2;
-            const avgB = ((pairB[0].players as any).handicap_index + (pairB[1].players as any).handicap_index) / 2;
-            return avgA - avgB;
-          });
-          return pairs.flat();
-        })()
-      : team1SelectionsRaw.sort((a, b) => {
-          const handicapA = (a.players as any).handicap_index;
-          const handicapB = (b.players as any).handicap_index;
-          return handicapA - handicapB;
+    const sortSelections = (raw: typeof team1SelectionsRaw) => {
+      if (!raw || raw.length === 0) return [];
+      if (isFinals) {
+        const sorted = raw.sort((a, b) => a.selection_order - b.selection_order);
+        const pairs: typeof sorted[] = [];
+        for (let i = 0; i < sorted.length; i += 2) pairs.push(sorted.slice(i, i + 2));
+        pairs.sort((pairA, pairB) => {
+          const avgA = ((pairA[0].players as any).handicap_index + (pairA[1].players as any).handicap_index) / 2;
+          const avgB = ((pairB[0].players as any).handicap_index + (pairB[1].players as any).handicap_index) / 2;
+          return avgA - avgB;
         });
+        return pairs.flat();
+      }
+      return raw.sort((a, b) => {
+        const handicapA = (a.players as any).handicap_index;
+        const handicapB = (b.players as any).handicap_index;
+        return handicapA - handicapB;
+      });
+    };
 
-    const team2Selections = isFinals
-      ? (() => {
-          const sorted = team2SelectionsRaw.sort((a, b) => a.selection_order - b.selection_order);
-          const pairs: typeof sorted[] = [];
-          for (let i = 0; i < sorted.length; i += 2) pairs.push(sorted.slice(i, i + 2));
-          pairs.sort((pairA, pairB) => {
-            const avgA = ((pairA[0].players as any).handicap_index + (pairA[1].players as any).handicap_index) / 2;
-            const avgB = ((pairB[0].players as any).handicap_index + (pairB[1].players as any).handicap_index) / 2;
-            return avgA - avgB;
-          });
-          return pairs.flat();
-        })()
-      : team2SelectionsRaw.sort((a, b) => {
-          const handicapA = (a.players as any).handicap_index;
-          const handicapB = (b.players as any).handicap_index;
-          return handicapA - handicapB;
-        });
+    const team1Selections = sortSelections(team1SelectionsRaw);
+    const team2Selections = sortSelections(team2SelectionsRaw);
 
     await supabase
       .from('individual_matches')
@@ -132,9 +127,80 @@ Deno.serve(async (req: Request) => {
       .eq('match_id', matchId);
 
     const individualMatchesToInsert = [];
+    const numMatches = isFinals ? 5 : 8;
 
     if (isFinals) {
-      for (let i = 0; i < 5; i++) {
+      const team1Pairs = team1Count / 2;
+      const team2Pairs = team2Count / 2;
+
+      for (let i = 0; i < numMatches; i++) {
+        const hasTeam1 = i < team1Pairs;
+        const hasTeam2 = i < team2Pairs;
+
+        if (!hasTeam1 && !hasTeam2) {
+          individualMatchesToInsert.push({
+            match_id: matchId,
+            match_order: i + 1,
+            team1_player_id: null,
+            team1_player2_id: null,
+            team2_player_id: null,
+            team2_player2_id: null,
+            team1_handicap: null,
+            team2_handicap: null,
+            strokes_given: 0,
+            strokes_receiver: null,
+            result: null,
+            team1_points: 0,
+            team2_points: 0,
+            score_detail: 'Aucun joueur désigné',
+          });
+          continue;
+        }
+
+        if (!hasTeam1) {
+          const team2Player1 = team2Selections[i * 2];
+          const team2Player2 = team2Selections[i * 2 + 1];
+          individualMatchesToInsert.push({
+            match_id: matchId,
+            match_order: i + 1,
+            team1_player_id: null,
+            team1_player2_id: null,
+            team2_player_id: team2Player1.player_id,
+            team2_player2_id: team2Player2.player_id,
+            team1_handicap: null,
+            team2_handicap: ((team2Player1.players as any).handicap_index + (team2Player2.players as any).handicap_index) / 2,
+            strokes_given: 0,
+            strokes_receiver: null,
+            result: 'team2',
+            team1_points: 0,
+            team2_points: 1,
+            score_detail: 'Forfait équipe 1 — match accordé à l\'équipe 2',
+          });
+          continue;
+        }
+
+        if (!hasTeam2) {
+          const team1Player1 = team1Selections[i * 2];
+          const team1Player2 = team1Selections[i * 2 + 1];
+          individualMatchesToInsert.push({
+            match_id: matchId,
+            match_order: i + 1,
+            team1_player_id: team1Player1.player_id,
+            team1_player2_id: team1Player2.player_id,
+            team2_player_id: null,
+            team2_player2_id: null,
+            team1_handicap: ((team1Player1.players as any).handicap_index + (team1Player2.players as any).handicap_index) / 2,
+            team2_handicap: null,
+            strokes_given: 0,
+            strokes_receiver: null,
+            result: 'team1',
+            team1_points: 1,
+            team2_points: 0,
+            score_detail: 'Forfait équipe 2 — match accordé à l\'équipe 1',
+          });
+          continue;
+        }
+
         const team1Player1 = team1Selections[i * 2];
         const team1Player2 = team1Selections[i * 2 + 1];
         const team2Player1 = team2Selections[i * 2];
@@ -145,7 +211,6 @@ Deno.serve(async (req: Request) => {
         const team2Player1Handicap = (team2Player1.players as any).handicap_index;
         const team2Player2Handicap = (team2Player2.players as any).handicap_index;
 
-        // Cap handicaps at 30 for stroke calculation
         const team1Player1Capped = Math.min(team1Player1Handicap, 30);
         const team1Player2Capped = Math.min(team1Player2Handicap, 30);
         const team2Player1Capped = Math.min(team2Player1Handicap, 30);
@@ -177,14 +242,78 @@ Deno.serve(async (req: Request) => {
         });
       }
     } else {
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < numMatches; i++) {
+        const hasTeam1 = i < team1Count;
+        const hasTeam2 = i < team2Count;
+
+        if (!hasTeam1 && !hasTeam2) {
+          individualMatchesToInsert.push({
+            match_id: matchId,
+            match_order: i + 1,
+            team1_player_id: null,
+            team2_player_id: null,
+            team1_player2_id: null,
+            team2_player2_id: null,
+            team1_handicap: null,
+            team2_handicap: null,
+            strokes_given: 0,
+            strokes_receiver: null,
+            result: null,
+            team1_points: 0,
+            team2_points: 0,
+            score_detail: 'Aucun joueur désigné',
+          });
+          continue;
+        }
+
+        if (!hasTeam1) {
+          const team2Player = team2Selections[i];
+          individualMatchesToInsert.push({
+            match_id: matchId,
+            match_order: i + 1,
+            team1_player_id: null,
+            team2_player_id: team2Player.player_id,
+            team1_player2_id: null,
+            team2_player2_id: null,
+            team1_handicap: null,
+            team2_handicap: (team2Player.players as any).handicap_index,
+            strokes_given: 0,
+            strokes_receiver: null,
+            result: 'team2',
+            team1_points: 0,
+            team2_points: 1,
+            score_detail: 'Forfait équipe 1 — match accordé à l\'équipe 2',
+          });
+          continue;
+        }
+
+        if (!hasTeam2) {
+          const team1Player = team1Selections[i];
+          individualMatchesToInsert.push({
+            match_id: matchId,
+            match_order: i + 1,
+            team1_player_id: team1Player.player_id,
+            team2_player_id: null,
+            team1_player2_id: null,
+            team2_player2_id: null,
+            team1_handicap: (team1Player.players as any).handicap_index,
+            team2_handicap: null,
+            strokes_given: 0,
+            strokes_receiver: null,
+            result: 'team1',
+            team1_points: 1,
+            team2_points: 0,
+            score_detail: 'Forfait équipe 2 — match accordé à l\'équipe 1',
+          });
+          continue;
+        }
+
         const team1Player = team1Selections[i];
         const team2Player = team2Selections[i];
 
         const team1Handicap = (team1Player.players as any).handicap_index;
         const team2Handicap = (team2Player.players as any).handicap_index;
 
-        // Cap handicaps at 30 for stroke calculation
         const team1HandicapCapped = Math.min(team1Handicap, 30);
         const team2HandicapCapped = Math.min(team2Handicap, 30);
 

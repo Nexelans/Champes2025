@@ -318,6 +318,46 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
     }
   };
 
+  const saveSelections = async (players: Selection[]) => {
+    if (!selectedMatch) return;
+
+    await supabase
+      .from('match_player_selections')
+      .delete()
+      .eq('match_id', selectedMatch.id)
+      .eq('team_id', captain.team_id);
+
+    if (players.length > 0) {
+      const selectionsToInsert = players.map((selection, index) => ({
+        match_id: selectedMatch.id,
+        team_id: captain.team_id,
+        player_id: selection.player_id,
+        selection_order: index + 1,
+      }));
+
+      const { error: insertError } = await supabase.from('match_player_selections').insert(selectionsToInsert);
+      if (insertError) throw insertError;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No session');
+
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-individual-matches`;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ matchId: selectedMatch.id }),
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      console.log('Individual matches generation:', result.error);
+    }
+  };
+
   const handleSave = async () => {
     if (!selectedMatch) return;
     setSaving(true);
@@ -339,44 +379,39 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
         }
       }
 
-      await supabase
-        .from('match_player_selections')
-        .delete()
-        .eq('match_id', selectedMatch.id)
-        .eq('team_id', captain.team_id);
-
-      const selectionsToInsert = selectedPlayers.map((selection, index) => ({
-        match_id: selectedMatch.id,
-        team_id: captain.team_id,
-        player_id: selection.player_id,
-        selection_order: index + 1,
-      }));
-
-      const { error: insertError } = await supabase.from('match_player_selections').insert(selectionsToInsert);
-      if (insertError) throw insertError;
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No session');
-
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-individual-matches`;
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ matchId: selectedMatch.id }),
-      });
-
-      const result = await response.json();
-      if (!result.success) {
-        console.log('Individual matches generation:', result.error);
-      }
-
+      await saveSelections(selectedPlayers);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       console.error('Error saving selections:', err);
+      setError("Erreur lors de l'enregistrement de la sélection");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveIncomplete = async () => {
+    if (!selectedMatch) return;
+    setSaving(true);
+    setError(null);
+    try {
+      if (selectedPlayers.length === 0) {
+        setError('Veuillez sélectionner au moins un joueur');
+        setSaving(false);
+        return;
+      }
+
+      if (selectedMatch.is_final && selectedPlayers.length % 2 !== 0) {
+        setError('En foursome, les paires doivent être complètes (nombre pair de joueurs requis)');
+        setSaving(false);
+        return;
+      }
+
+      await saveSelections(selectedPlayers);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error saving incomplete selections:', err);
       setError("Erreur lors de l'enregistrement de la sélection");
     } finally {
       setSaving(false);
@@ -623,21 +658,49 @@ export default function TeamSelection({ captain, isAdmin = false }: TeamSelectio
           )}
 
           {canModifySelection() && (
-            <div className="flex justify-end space-x-3 mt-4">
-              <button
-                onClick={() => setSelectedPlayers([])}
-                className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-              >
-                Réinitialiser
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || selectedPlayers.length !== getMaxPlayers(selectedMatch)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save className="w-4 h-4" />
-                <span>{saving ? 'Enregistrement...' : 'Enregistrer'}</span>
-              </button>
+            <div className="mt-4 space-y-3">
+              {selectedPlayers.length > 0 && selectedPlayers.length < getMaxPlayers(selectedMatch) && !(selectedMatch.is_final && selectedPlayers.length % 2 !== 0) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800">
+                    Équipe incomplète ({selectedPlayers.length}/{getMaxPlayers(selectedMatch)} joueurs). Les matches sans joueur désigné seront automatiquement accordés à l'adversaire. Vous pouvez revenir compléter avant le verrouillage.
+                  </p>
+                </div>
+              )}
+              {selectedMatch.is_final && selectedPlayers.length % 2 !== 0 && selectedPlayers.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-800">
+                    En foursome, les paires doivent être complètes. Ajoutez un 2e joueur à la paire en cours ou retirez le joueur seul.
+                  </p>
+                </div>
+              )}
+              <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  onClick={() => setSelectedPlayers([])}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Réinitialiser
+                </button>
+                {selectedPlayers.length > 0 && selectedPlayers.length < getMaxPlayers(selectedMatch) && !(selectedMatch.is_final && selectedPlayers.length % 2 !== 0) && (
+                  <button
+                    onClick={handleSaveIncomplete}
+                    disabled={saving}
+                    className="px-5 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{saving ? 'Enregistrement...' : 'Enregistrer une équipe incomplète'}</span>
+                  </button>
+                )}
+                <button
+                  onClick={handleSave}
+                  disabled={saving || selectedPlayers.length !== getMaxPlayers(selectedMatch)}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{saving ? 'Enregistrement...' : 'Enregistrer'}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
